@@ -213,6 +213,7 @@ export const ipoService = {
       meroShareRemark?: string;
     })[] = [];
 
+
     for (const account of accounts) {
       try {
         const client = new MeroShareClient();
@@ -242,10 +243,10 @@ export const ipoService = {
                 ? detail.receivedKitta
                 : detail.appliedKitta;
             meroShareRemark = detail.meroshareRemark || detail.reasonOrRemark;
+            const isReleased = meroShareRemark?.toLowerCase().includes("release");
+            const isAllotmentResultApproved = detail.stageName === "ALLOTMENT_RESULT_APPROVED";
 
-            if (detail.statusName === "Verified") {
-              status = "applied";
-            } else if (detail.statusName === "Rejected") {
+            if (detail.statusName === "Rejected") {
               status = "error";
               errorMessage = detail.reason || "Block failed";
             } else if (
@@ -254,13 +255,17 @@ export const ipoService = {
             ) {
               status = "allotted";
             } else if (
-              detail.statusDescription === "TRANSACTION SUCCESS" &&
-              (detail.receivedKitta ?? 0) === 0
+              detail.statusName === "Non-Alloted" ||
+              detail.statusName === "Not Alloted" ||
+              (isAllotmentResultApproved && (detail.receivedKitta ?? 0) === 0) ||
+              (isReleased && (detail.receivedKitta ?? 0) === 0)
             ) {
               status = "not_allotted";
+            } else if (detail.statusName === "Verified") {
+              status = "applied";
             } else if (app.statusName === "TRANSACTION_SUCCESS") {
-              // If the detail endpoint doesn't make it clear but the summary said success
-              status = "allotted";
+              // The detail didn't explicitly say Alloted or Non-Alloted
+              status = "applied";
             }
           } catch (err) {
             // Fallback to high-level search array data if detail fails
@@ -270,7 +275,7 @@ export const ipoService = {
               status = "error";
               errorMessage = "Block failed";
             } else if (app.statusName === "TRANSACTION_SUCCESS") {
-              status = "allotted";
+              status = "applied";
             }
           }
 

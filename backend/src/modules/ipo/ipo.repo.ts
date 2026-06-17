@@ -41,6 +41,10 @@ export const ipoRepo = {
     return db.select().from(ipos).where(eq(ipos.isResultPublished, false));
   },
 
+  async findAllIpos(): Promise<SelectIpo[]> {
+    return db.select().from(ipos);
+  },
+
   async markResultPublished(companyShareId: string): Promise<void> {
     await db
       .update(ipos)

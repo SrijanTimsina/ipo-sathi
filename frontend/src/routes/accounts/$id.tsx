@@ -119,8 +119,10 @@ function EditAccountContent() {
       await updateAccount.mutateAsync(payload)
       toast.success('Account updated successfully')
       await router.navigate({ to: '/accounts' })
-    } catch {
-      toast.error('Failed to update account')
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.error?.message || 'Failed to update account'
+      toast.error(errorMessage)
     }
   }
 
@@ -311,7 +313,9 @@ function EditAccountContent() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-base">Auto Re-Apply</FormLabel>
+                        <FormLabel className="text-base">
+                          Auto Re-Apply
+                        </FormLabel>
                         <FormDescription>
                           Automatically re-apply if the IPO application is
                           rejected.

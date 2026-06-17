@@ -234,6 +234,17 @@ export class MeroShareClient {
           }
         }
 
+        if (error.response?.data) {
+          const resData = error.response.data;
+          if (typeof resData === "string") {
+            error.message = resData;
+          } else if (resData.message) {
+            error.message = resData.message;
+          } else if (resData.error) {
+            error.message = resData.error;
+          }
+        }
+
         return Promise.reject(error);
       },
     );

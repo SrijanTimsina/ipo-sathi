@@ -127,11 +127,11 @@ export const accountsService = {
         demat: null,
         clientCode: null,
       });
-    } catch (error) {
+    } catch (error: any) {
       throw new AppError(
         400,
         "VALIDATION_ERROR",
-        "MeroShare authentication failed. Please check your credentials.",
+        error.message || "MeroShare authentication failed. Please check your credentials.",
       );
     }
 
@@ -213,11 +213,11 @@ export const accountsService = {
           demat: account.demat,
           clientCode: account.clientCode,
         });
-      } catch (error) {
+      } catch (error: any) {
         throw new AppError(
           400,
           "VALIDATION_ERROR",
-          "MeroShare authentication failed with updated credentials.",
+          error.message || "MeroShare authentication failed with updated credentials.",
         );
       }
 

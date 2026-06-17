@@ -93,8 +93,11 @@ function NewAccountContent() {
       await createAccount.mutateAsync(values)
       toast.success('Account added successfully')
       await router.navigate({ to: '/accounts' })
-    } catch {
-      toast.error('Failed to add account. Please check your details.')
+    } catch (error: any) {
+      const errorMessage =
+        error?.response?.data?.error?.message ||
+        'Failed to add account. Please check your details.'
+      toast.error(errorMessage)
     }
   }
 
@@ -277,7 +280,9 @@ function NewAccountContent() {
                   render={({ field }) => (
                     <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                       <div className="space-y-0.5">
-                        <FormLabel className="text-base">Auto Re-Apply</FormLabel>
+                        <FormLabel className="text-base">
+                          Auto Re-Apply
+                        </FormLabel>
                         <FormDescription>
                           Automatically re-apply if the IPO application is
                           rejected.
