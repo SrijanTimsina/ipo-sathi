@@ -23,7 +23,7 @@ app.use(
   cors({
     origin: config.server.corsOrigin,
     credentials: true, // allow cookies (refresh token)
-  })
+  }),
 );
 app.use(express.json());
 app.use(cookieParser());
@@ -43,16 +43,20 @@ app.use(`${API}/admin/users`, usersAdminRoute);
 app.use(`${API}/admin/users/:userId/accounts`, accountsAdminRoute);
 app.use(`${API}/admin/ipo`, ipoAdminRoute);
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
+// Render Health Check (Always 200 so Render doesn't restart the app)
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", environment: config.server.nodeEnv });
+});
 
-app.get("/health", async (_req, res) => {
+// Uptime Robot Check (Returns 503 if dependencies like WhatsApp are failing)
+app.get("/uptime", async (_req, res) => {
   let whatsappStatus = "unknown";
   let isHealthy = true;
 
   try {
     const waResponse = await whatsappService.checkConnectionStatus();
     whatsappStatus = waResponse?.instance?.state || "not_configured";
-    
+
     // If it's configured but not connected, mark as unhealthy
     if (whatsappStatus !== "not_configured" && whatsappStatus !== "open") {
       isHealthy = false;

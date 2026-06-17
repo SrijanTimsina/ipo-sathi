@@ -7,10 +7,10 @@ import { checkIpoResults } from "./modules/ipo/ipo.result.automation.js";
 
 const PORT = config.server.port;
 
-app.listen(PORT, () => {
-  console.log(`[Server] Running at http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`[Server] Running at http://0.0.0.0:${PORT}`);
   console.log(`[Server] Environment: ${config.server.nodeEnv}`);
-  console.log(`[Server] API base: http://localhost:${PORT}/api/v1`);
+  console.log(`[Server] API base: http://0.0.0.0:${PORT}/api/v1`);
 });
 
 // Set up daily cron jobs for IPO Automation
