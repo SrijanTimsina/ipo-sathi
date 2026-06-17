@@ -26,6 +26,18 @@ cron.schedule(
   },
 );
 
+// Runs every day at 1:45 PM Nepal Time
+cron.schedule(
+  "45 13 * * *",
+  () => {
+    console.log("[Cron] Running afternoon IPO automation (1:45 PM NPT)...");
+    void runIpoAutomation();
+  },
+  {
+    timezone: "Asia/Kathmandu",
+  },
+);
+
 // Runs every day at 4:10 PM Nepal Time
 cron.schedule(
   "10 16 * * *",
