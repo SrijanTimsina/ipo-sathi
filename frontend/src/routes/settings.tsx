@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
-import { Shield } from 'lucide-react'
+import { Shield, Eye, EyeOff } from 'lucide-react'
 
 import { ProtectedRoute } from '#/shared/components/ProtectedRoute'
 import { AppLayout } from '#/shared/components/AppLayout'
@@ -68,6 +69,10 @@ function SettingsPage() {
 }
 
 function ChangePasswordForm() {
+  const [showOldPassword, setShowOldPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+
   const form = useForm<PasswordForm>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
@@ -108,7 +113,19 @@ function ChangePasswordForm() {
             <FormItem>
               <FormLabel>Current Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Enter current password" {...field} />
+                <div className="relative">
+                  <Input type={showOldPassword ? "text" : "password"} placeholder="Enter current password" {...field} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowOldPassword(!showOldPassword)}
+                    tabIndex={-1}
+                  >
+                    {showOldPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -121,7 +138,19 @@ function ChangePasswordForm() {
             <FormItem>
               <FormLabel>New Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Enter new password" {...field} />
+                <div className="relative">
+                  <Input type={showNewPassword ? "text" : "password"} placeholder="Enter new password" {...field} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    tabIndex={-1}
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -134,7 +163,19 @@ function ChangePasswordForm() {
             <FormItem>
               <FormLabel>Confirm New Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Confirm new password" {...field} />
+                <div className="relative">
+                  <Input type={showConfirmPassword ? "text" : "password"} placeholder="Confirm new password" {...field} />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
+                  </Button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>

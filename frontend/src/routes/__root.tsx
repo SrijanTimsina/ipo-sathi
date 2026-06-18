@@ -22,11 +22,17 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'IPO Manager — Bulk Application Tool' },
+      { title: 'IPO Sathi — Bulk Application Tool' },
       {
         name: 'description',
         content:
-          'Manage your MeroShare accounts, view open IPOs, and apply in bulk across all your accounts.',
+          'Manage your MeroShare accounts, view open IPOs, and apply in bulk across all your accounts with IPO Sathi.',
+      },
+      { property: 'og:title', content: 'IPO Sathi — Bulk Application Tool' },
+      {
+        property: 'og:description',
+        content:
+          'Manage your MeroShare accounts, view open IPOs, and apply in bulk across all your accounts with IPO Sathi.',
       },
     ],
     links: [

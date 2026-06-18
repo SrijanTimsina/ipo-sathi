@@ -6,7 +6,7 @@ import { config } from "../../config/index.js";
 export const whatsappService = {
   /**
    * Sends a WhatsApp text message using the Evolution API.
-   * 
+   *
    * @param recipientNumber The phone number in international format (e.g., "9779812345678")
    * @param message The text message to send
    * @returns The response data from Evolution API
@@ -15,7 +15,9 @@ export const whatsappService = {
     const { apiUrl, apiKey, instanceName } = config.whatsapp;
 
     if (!apiUrl || !apiKey || !instanceName) {
-      console.warn("WhatsApp configuration is missing in environment variables. Message not sent.");
+      console.warn(
+        "WhatsApp configuration is missing in environment variables. Message not sent.",
+      );
       return null;
     }
 
@@ -35,7 +37,7 @@ export const whatsappService = {
             "Content-Type": "application/json",
             apikey: apiKey,
           },
-        }
+        },
       );
 
       // Log the message
@@ -50,13 +52,17 @@ export const whatsappService = {
 
       return response.data;
     } catch (error) {
-      console.error(`Failed to send WhatsApp message to ${recipientNumber}:`, error);
-      
+      console.error(
+        `Failed to send WhatsApp message to ${recipientNumber}:`,
+        error,
+      );
+
       // Log the failure
       try {
         const logDir = path.join(process.cwd(), "logs");
         if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-        const errorMsg = error instanceof Error ? error.message : "Unknown error";
+        const errorMsg =
+          error instanceof Error ? error.message : "Unknown error";
         const logLine = `[${new Date().toISOString()}] ERROR SENDING TO ${recipientNumber}\nMessage:\n${message}\nError: ${errorMsg}\n\n`;
         fs.appendFileSync(path.join(logDir, "whatsapp.log"), logLine);
       } catch (e) {}
@@ -67,14 +73,16 @@ export const whatsappService = {
 
   /**
    * Checks the connection status of the Evolution API instance.
-   * 
+   *
    * @returns The connection state object (e.g., { instance: { state: "open" } }) or null
    */
   async checkConnectionStatus() {
     const { apiUrl, apiKey, instanceName } = config.whatsapp;
 
     if (!apiUrl || !apiKey || !instanceName) {
-      console.warn("WhatsApp configuration is missing in environment variables.");
+      console.warn(
+        "WhatsApp configuration is missing in environment variables.",
+      );
       return null;
     }
 

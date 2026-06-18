@@ -1,23 +1,14 @@
 import { eq, and, desc } from "drizzle-orm";
 import { db } from "../../shared/db/index.js";
 import {
-  type SelectIpoApplication,
-  type InsertIpoApplication,
+  type SelectIpoNotification,
+  type InsertIpoNotification,
   type SelectIpo,
   type InsertIpo,
 } from "./ipo.schema.js";
-import { ipoApplications, ipos } from "./ipo.schema.js";
+import { ipoNotifications, ipos } from "./ipo.schema.js";
 
 export const ipoRepo = {
-  async createApplication(
-    input: InsertIpoApplication,
-  ): Promise<SelectIpoApplication> {
-    const result = await db.insert(ipoApplications).values(input).returning();
-    const record = result[0];
-    if (!record) throw new Error("Failed to create IPO application record");
-    return record;
-  },
-
   async upsertIpo(input: InsertIpo): Promise<SelectIpo> {
     const result = await db
       .insert(ipos)
@@ -52,87 +43,52 @@ export const ipoRepo = {
       .where(eq(ipos.companyShareId, companyShareId));
   },
 
-  async updateStatus(
-    id: string,
-    status: SelectIpoApplication["status"],
-    errorMessage?: string,
-  ): Promise<void> {
-    await db
-      .update(ipoApplications)
-      .set({
-        status,
-        errorMessage: errorMessage ?? null,
-        updatedAt: new Date(),
-      })
-      .where(eq(ipoApplications.id, id));
-  },
-
-  async updateNotificationStatus(
-    id: string,
-    notificationStatus: SelectIpoApplication["notificationStatus"],
-  ): Promise<void> {
-    await db
-      .update(ipoApplications)
-      .set({
-        notificationStatus,
-        updatedAt: new Date(),
-      })
-      .where(eq(ipoApplications.id, id));
-  },
-
-  async findByUserId(
+  async getNotificationState(
     userId: string,
-    ipoId?: string,
-  ): Promise<SelectIpoApplication[]> {
-    const whereClause = ipoId
-      ? and(
-          eq(ipoApplications.userId, userId),
-          eq(ipoApplications.ipoId, ipoId),
-        )
-      : eq(ipoApplications.userId, userId);
-
-    return db
-      .select()
-      .from(ipoApplications)
-      .where(whereClause)
-      .orderBy(desc(ipoApplications.appliedAt));
-  },
-
-  async findAllotmentResults(userId: string): Promise<SelectIpoApplication[]> {
-    return db
-      .select()
-      .from(ipoApplications)
-      .where(
-        and(
-          eq(ipoApplications.userId, userId),
-          eq(ipoApplications.status, "allotted"),
-        ),
-      )
-      .orderBy(desc(ipoApplications.appliedAt));
-  },
-
-  async findByUserIdAdmin(userId: string): Promise<SelectIpoApplication[]> {
-    return db
-      .select()
-      .from(ipoApplications)
-      .where(eq(ipoApplications.userId, userId))
-      .orderBy(desc(ipoApplications.appliedAt));
-  },
-
-  async findByAccountAndIpo(
-    accountId: string,
     ipoId: string,
-  ): Promise<SelectIpoApplication | undefined> {
-    const result = await db
+  ): Promise<SelectIpoNotification> {
+    let result = await db
       .select()
-      .from(ipoApplications)
+      .from(ipoNotifications)
       .where(
         and(
-          eq(ipoApplications.brokerAccountId, accountId),
-          eq(ipoApplications.ipoId, ipoId),
+          eq(ipoNotifications.userId, userId),
+          eq(ipoNotifications.ipoId, ipoId),
         ),
       )
       .limit(1);
-    return result[0];
+
+    if (result.length === 0) {
+      result = await db
+        .insert(ipoNotifications)
+        .values({ userId, ipoId })
+        .returning();
+    }
+    
+    return result[0]!;
+  },
+
+  async markInitialSent(userId: string, ipoId: string): Promise<void> {
+    await db
+      .update(ipoNotifications)
+      .set({ initialSent: true, updatedAt: new Date() })
+      .where(
+        and(
+          eq(ipoNotifications.userId, userId),
+          eq(ipoNotifications.ipoId, ipoId),
+        ),
+      );
+  },
+
+  async markAllVerifiedSent(userId: string, ipoId: string): Promise<void> {
+    await db
+      .update(ipoNotifications)
+      .set({ allVerifiedSent: true, updatedAt: new Date() })
+      .where(
+        and(
+          eq(ipoNotifications.userId, userId),
+          eq(ipoNotifications.ipoId, ipoId),
+        ),
+      );
   },
 };

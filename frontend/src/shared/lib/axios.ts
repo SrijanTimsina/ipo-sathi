@@ -15,6 +15,7 @@ export const apiClient = axios.create({
 // ─── Request Interceptor: attach access token ─────────────────────────────────
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  ;(config as any).metadata = { startTime: Date.now() }
   const token = getAccessToken()
   if (token) {
     config.headers['Authorization'] = `Bearer ${token}`
@@ -42,14 +43,36 @@ function processQueue(error: unknown, token: string | null): void {
 }
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const start = (response.config as any).metadata?.startTime
+    if (start) {
+      const duration = Date.now() - start
+      console.log(
+        `[Frontend Roundtrip] ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`,
+      )
+    }
+    return response
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean
     }
 
+    const start = (originalRequest as any)?.metadata?.startTime
+    if (start) {
+      const duration = Date.now() - start
+      console.log(
+        `[Frontend Roundtrip Error] ${originalRequest.method?.toUpperCase()} ${originalRequest.url} took ${duration}ms`,
+      )
+    }
+
     // If 401 and not already retrying, attempt token refresh
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/refresh')
+    ) {
       if (isRefreshing) {
         // Queue this request while refresh is in progress
         return new Promise<string>((resolve, reject) => {

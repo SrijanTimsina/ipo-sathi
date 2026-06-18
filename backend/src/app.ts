@@ -28,6 +28,16 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// ─── Performance Logging Middleware ───────────────────────────────────────────
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    console.log(`[Backend Route] ${req.method} ${req.originalUrl} took ${duration}ms`);
+  });
+  next();
+});
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 const API = "/api/v1";

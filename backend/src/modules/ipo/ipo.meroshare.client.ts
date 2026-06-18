@@ -168,6 +168,7 @@ export class MeroShareClient {
 
     // Setup logging interceptors
     this.http.interceptors.request.use((config) => {
+      ;(config as any).metadata = { startTime: Date.now() }
       try {
         const logDir = path.join(process.cwd(), "logs");
         if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
@@ -180,6 +181,11 @@ export class MeroShareClient {
 
     this.http.interceptors.response.use(
       (response) => {
+        const start = (response.config as any)?.metadata?.startTime
+        if (start) {
+          const duration = Date.now() - start
+          console.log(`[Meroshare API] ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`)
+        }
         try {
           const logDir = path.join(process.cwd(), "logs");
           const logLine = `[${new Date().toISOString()}] RESPONSE ${response.config.method?.toUpperCase()} ${response.config.url} -> ${response.status}\nData: ${JSON.stringify(response.data)}\n\n`;
@@ -188,6 +194,11 @@ export class MeroShareClient {
         return response;
       },
       async (error) => {
+        const start = (error.config as any)?.metadata?.startTime
+        if (start) {
+          const duration = Date.now() - start
+          console.log(`[Meroshare API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} took ${duration}ms`)
+        }
         try {
           const logDir = path.join(process.cwd(), "logs");
           if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });

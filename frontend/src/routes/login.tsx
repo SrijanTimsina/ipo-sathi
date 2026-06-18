@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -5,10 +6,17 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '#/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '#/components/ui/form'
+import { Card, CardContent } from '#/components/ui/card'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '#/components/ui/form'
 import { useAuth } from '#/shared/hooks/useAuth'
-import { TrendingUp } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -24,6 +32,7 @@ type LoginForm = z.infer<typeof loginSchema>
 function LoginPage() {
   const { login } = useAuth()
   const router = useRouter()
+  const [showPassword, setShowPassword] = useState(false)
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -43,22 +52,29 @@ function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-primary text-primary-foreground mb-2">
-            <TrendingUp className="h-7 w-7" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">IPO Manager</h1>
-          <p className="text-muted-foreground">Bulk IPO Application Platform</p>
+        {/* Logo */}
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <img
+            src="/logo.png"
+            alt="IPO Sathi Logo"
+            className="h-20 w-auto object-contain mb-2"
+          />
+          <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-br from-green-400 to-cyan-500 bg-clip-text text-transparent">
+            IPO Sathi
+          </h1>
+          <p className="text-muted-foreground text-center max-w-sm mt-2">
+            Automated bulk IPO applications with real-time WhatsApp
+            notifications.
+          </p>
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Sign in</CardTitle>
-            <CardDescription>Enter your mobile number and password to access your account.</CardDescription>
-          </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="mobileNumber"
@@ -85,13 +101,32 @@ function LoginPage() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input
-                          id="password"
-                          type="password"
-                          placeholder="••••••••"
-                          autoComplete="current-password"
-                          {...field}
-                        />
+                        <div className="relative">
+                          <Input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="••••••••"
+                            autoComplete="current-password"
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowPassword(!showPassword)}
+                            tabIndex={-1}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <span className="sr-only">
+                              Toggle password visibility
+                            </span>
+                          </Button>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -110,9 +145,19 @@ function LoginPage() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-muted-foreground">
-          Account access is managed by your administrator.
-        </p>
+        <div className="text-center space-y-2 mt-8">
+          <p className="text-lg text-muted-foreground">
+            Built by{' '}
+            <a
+              href="https://srijantimsina.com.np"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-primary transition-colors hover:underline"
+            >
+              Srijan Timsina
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   )

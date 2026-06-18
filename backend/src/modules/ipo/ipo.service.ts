@@ -6,7 +6,6 @@ import {
 import { ipoRepo } from "./ipo.repo.js";
 import { accountsService } from "../accounts/accounts.service.js";
 import { AppError } from "../../shared/middleware/errorHandler.js";
-import type { SelectIpoApplication } from "./ipo.schema.js";
 import type { DecryptedAccount } from "../accounts/accounts.service.js";
 
 export interface BulkApplyInput {
@@ -16,11 +15,34 @@ export interface BulkApplyInput {
   accountIds?: string[]; // if omitted, applies to all active accounts
 }
 
+export interface IpoStatusResult {
+  id: string;
+  userId: string;
+  brokerAccountId: string;
+  ipoId: string;
+  ipoName: string;
+  status:
+    | "applied"
+    | "pending"
+    | "allotted"
+    | "not_allotted"
+    | "error"
+    | "not_applied";
+  errorMessage: string | null;
+  quantity?: number;
+  meroShareRemark?: string;
+  appliedAt: Date;
+  updatedAt: Date;
+  notificationStatus: string;
+  username: string;
+  name?: string;
+}
+
 export interface BulkApplyResult {
   total: number;
   successful: number;
   failed: number;
-  applications: SelectIpoApplication[];
+  applications: Partial<IpoStatusResult>[];
 }
 
 export const ipoService = {
@@ -47,7 +69,10 @@ export const ipoService = {
         return await client.getApplicableIpos(token);
       } catch (err) {
         lastError = err;
-        console.warn(`Failed to fetch IPOs using account ${account.username}:`, err instanceof Error ? err.message : err);
+        console.warn(
+          `Failed to fetch IPOs using account ${account.username}:`,
+          err instanceof Error ? err.message : err,
+        );
         // Continue and try the next account
       }
     }
@@ -61,7 +86,6 @@ export const ipoService = {
 
   /**
    * Apply for an IPO across all (or selected) broker accounts.
-   * Each application is logged independently in ipo_applications.
    */
   async bulkApply(
     userId: string,
@@ -85,46 +109,29 @@ export const ipoService = {
       );
     }
 
-    const applications: SelectIpoApplication[] = [];
+    const applications: Partial<IpoStatusResult>[] = [];
     let successful = 0;
     let failed = 0;
 
     // Process accounts sequentially with a short delay to respect rate limits
     for (const account of targetAccounts) {
-      const record = await ipoRepo.createApplication({
-        userId,
-        brokerAccountId: account.id,
-        ipoId: String(input.companyShareId),
-        ipoName: input.ipoName,
-        status: "pending",
-      });
-
       try {
-        await applyForAccount(account, input, record.id);
+        await applyForAccount(account, input);
 
-        await ipoRepo.updateStatus(record.id, "applied");
         successful++;
-        applications.push({ ...record, status: "applied" });
+        applications.push({ brokerAccountId: account.id, status: "applied" });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "Unknown error";
         if (message === "Already applied to this IPO") {
-          // If already applied, consider it a success state for the user conceptually,
-          // but we can mark it as applied in our DB without incrementing successful application count
-          await ipoRepo.updateStatus(
-            record.id,
-            "applied",
-            "Skipped: Already applied",
-          );
           applications.push({
-            ...record,
+            brokerAccountId: account.id,
             status: "applied",
             errorMessage: "Already applied",
           });
         } else {
-          await ipoRepo.updateStatus(record.id, "error", message);
           failed++;
           applications.push({
-            ...record,
+            brokerAccountId: account.id,
             status: "error",
             errorMessage: message,
           });
@@ -194,25 +201,12 @@ export const ipoService = {
     userId: string,
     ipoId?: string,
     accountId?: string,
-  ): Promise<
-    (SelectIpoApplication & {
-      username: string;
-      name?: string;
-      quantity?: number;
-      meroShareRemark?: string;
-    })[]
-  > {
+  ): Promise<IpoStatusResult[]> {
     let accounts = await accountsService.getDecryptedAccountsForUser(userId);
     if (accountId) {
       accounts = accounts.filter((a) => a.id === accountId);
     }
-    const applications: (SelectIpoApplication & {
-      username: string;
-      name?: string;
-      quantity?: number;
-      meroShareRemark?: string;
-    })[] = [];
-
+    const applications: IpoStatusResult[] = [];
 
     for (const account of accounts) {
       try {
@@ -223,10 +217,16 @@ export const ipoService = {
 
         const report = await client.getApplicationReport(token);
 
-        for (const app of report) {
-          if (ipoId && String(app.companyShareId) !== ipoId) continue;
+        const validApps = ipoId
+          ? report.filter((a) => String(a.companyShareId) === ipoId)
+          : report;
 
-          let status: SelectIpoApplication["status"] = "pending";
+        const promises = validApps.map(async (app, index) => {
+          if (index > 0) {
+            await new Promise((resolve) => setTimeout(resolve, index * 5));
+          }
+
+          let status: IpoStatusResult["status"] = "pending";
           let errorMessage: string | null = null;
           let quantity: number | undefined = undefined;
           let meroShareRemark: string | undefined = undefined;
@@ -243,8 +243,11 @@ export const ipoService = {
                 ? detail.receivedKitta
                 : detail.appliedKitta;
             meroShareRemark = detail.meroshareRemark || detail.reasonOrRemark;
-            const isReleased = meroShareRemark?.toLowerCase().includes("release");
-            const isAllotmentResultApproved = detail.stageName === "ALLOTMENT_RESULT_APPROVED";
+            const isReleased = meroShareRemark
+              ?.toLowerCase()
+              .includes("release");
+            const isAllotmentResultApproved =
+              detail.stageName === "ALLOTMENT_RESULT_APPROVED";
 
             if (detail.statusName === "Rejected") {
               status = "error";
@@ -257,7 +260,8 @@ export const ipoService = {
             } else if (
               detail.statusName === "Non-Alloted" ||
               detail.statusName === "Not Alloted" ||
-              (isAllotmentResultApproved && (detail.receivedKitta ?? 0) === 0) ||
+              (isAllotmentResultApproved &&
+                (detail.receivedKitta ?? 0) === 0) ||
               (isReleased && (detail.receivedKitta ?? 0) === 0)
             ) {
               status = "not_allotted";
@@ -279,7 +283,7 @@ export const ipoService = {
             }
           }
 
-          applications.push({
+          return {
             id: String(app.applicantFormId),
             userId,
             brokerAccountId: account.id,
@@ -294,11 +298,16 @@ export const ipoService = {
             notificationStatus: "none",
             username: account.username, // Include username for the UI
             name, // Include real name
-          });
-        }
-        
+          } as IpoStatusResult;
+        });
+
+        const accountApplications = await Promise.all(promises);
+        applications.push(...accountApplications);
+
         if (ipoId) {
-          const appliedToThisIpo = report.some((app) => String(app.companyShareId) === ipoId);
+          const appliedToThisIpo = report.some(
+            (app) => String(app.companyShareId) === ipoId,
+          );
           if (!appliedToThisIpo) {
             applications.push({
               id: `not-applied-${account.id}-${ipoId}`,
@@ -306,7 +315,7 @@ export const ipoService = {
               brokerAccountId: account.id,
               ipoId,
               ipoName: "Not Applied",
-              status: "not_applied" as any,
+              status: "not_applied",
               errorMessage: null,
               quantity: 0,
               meroShareRemark: "Not applied to this IPO",
@@ -347,15 +356,21 @@ export const ipoService = {
   /**
    * Get allotted IPO results for the user.
    */
-  async getAllotmentResults(userId: string): Promise<SelectIpoApplication[]> {
-    return ipoRepo.findAllotmentResults(userId);
+  async getAllotmentResults(userId: string): Promise<IpoStatusResult[]> {
+    const statuses = await this.getApplicationStatus(userId);
+    return statuses.filter((s) => s.status === "allotted");
   },
 
   /**
    * Reapply for an IPO for a specific broker account.
    */
-  async reapply(userId: string, accountId: string, applicantFormId: number): Promise<void> {
-    const allAccounts = await accountsService.getDecryptedAccountsForUser(userId);
+  async reapply(
+    userId: string,
+    accountId: string,
+    applicantFormId: number,
+  ): Promise<void> {
+    const allAccounts =
+      await accountsService.getDecryptedAccountsForUser(userId);
     const account = allAccounts.find((a) => a.id === accountId);
 
     if (!account) {
@@ -366,15 +381,19 @@ export const ipoService = {
       await reapplyForAccount(account, applicantFormId);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      throw new AppError(500, "REAPPLY_FAILED", `Failed to reapply: ${message}`);
+      throw new AppError(
+        500,
+        "REAPPLY_FAILED",
+        `Failed to reapply: ${message}`,
+      );
     }
   },
 
   /**
    * ADMIN: Get all IPO activity for any user.
    */
-  async getActivityForUser(userId: string): Promise<SelectIpoApplication[]> {
-    return ipoRepo.findByUserIdAdmin(userId);
+  async getActivityForUser(userId: string): Promise<IpoStatusResult[]> {
+    return this.getApplicationStatus(userId);
   },
 };
 
@@ -391,7 +410,6 @@ function sleep(ms: number): Promise<void> {
 export async function applyForAccount(
   account: DecryptedAccount,
   input: BulkApplyInput,
-  _recordId: string,
 ): Promise<void> {
   const client = new MeroShareClient();
 
@@ -403,7 +421,7 @@ export async function applyForAccount(
   const existingApp = report.find(
     (app) => app.companyShareId === input.companyShareId,
   );
-  
+
   if (existingApp) {
     // If not BLOCK_FAILED, it means it's pending/verified/allotted, so we don't need to check details
     if (existingApp.statusName !== "BLOCK_FAILED") {

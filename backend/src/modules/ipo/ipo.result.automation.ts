@@ -89,16 +89,11 @@ export async function checkIpoResults() {
 
 async function processPublishedIpo(ipo: any) {
   const allAccounts = await accountsService.getAllActiveDecryptedAccounts();
-  const updatedRecords = [];
+  const userLiveApps = new Map<string, any[]>();
 
   // 1. Fetch real allotment status for ALL users who applied
   for (const account of allAccounts) {
-    const record = await ipoRepo.findByAccountAndIpo(account.id, ipo.companyShareId);
-    if (!record) continue; // Didn't even try to apply
-    if (record.status === 'error') {
-       updatedRecords.push(record);
-       continue; // It failed initially, no need to check result
-    }
+    if (!userLiveApps.has(account.userId)) userLiveApps.set(account.userId, []);
 
     try {
       const accClient = new MeroShareClient();
@@ -106,43 +101,49 @@ async function processPublishedIpo(ipo: any) {
       const accReport = await accClient.getApplicationReport(accToken);
       const accApp = accReport.find((app) => String(app.companyShareId) === ipo.companyShareId);
       
+      let finalStatus: any = "pending";
+      let errorMsg: string | null = null;
+      let quantity: number | undefined;
+
       if (accApp) {
         const detail = await accClient.getApplicationDetail(accToken, accApp.applicantFormId);
-        let finalStatus = record.status;
         
         if (detail.statusName === "Alloted" || (detail.receivedKitta ?? 0) > 0) {
           finalStatus = "allotted";
+          quantity = detail.receivedKitta ?? detail.appliedKitta;
         } else if (detail.statusName === "Not Alloted" || (detail.statusDescription === "TRANSACTION SUCCESS" && (detail.receivedKitta ?? 0) === 0)) {
           finalStatus = "not_allotted";
-        }
-
-        if (record.status !== finalStatus) {
-           await ipoRepo.updateStatus(record.id, finalStatus as any);
-           record.status = finalStatus as any;
+          quantity = 0;
+        } else if (detail.statusName === "Rejected" || accApp.statusName === "BLOCK_FAILED") {
+          finalStatus = "error";
+          errorMsg = detail.reason || "Block failed";
+        } else if (detail.statusName === "Verified") {
+          finalStatus = "applied";
         }
       }
+
+      userLiveApps.get(account.userId)!.push({
+        brokerAccountId: account.id,
+        accountName: account.name || account.username,
+        isVerified: finalStatus === "applied" || finalStatus === "allotted" || finalStatus === "not_allotted",
+        isRejected: finalStatus === "error",
+        errorMessage: errorMsg,
+        status: finalStatus,
+        quantity,
+      });
+
     } catch (err) {
       console.error(`[ResultAutomation] Failed to fetch result for account ${account.username}`, err);
     }
     
-    updatedRecords.push(record);
     // Add a small delay between accounts to prevent IP blocks
     await new Promise(resolve => setTimeout(resolve, 5000));
   }
 
   // 2. Group by User ID and send notifications
-  // We can just build the map from allAccounts
-  const accountMap = new Map(allAccounts.map((a) => [a.id, a.name || a.username]));
-
-  const uniqueUserIds = [...new Set(updatedRecords.map(r => r.userId))];
-  
-  for (const userId of uniqueUserIds) {
-    const user = await usersRepo.findById(userId);
-    if (!user || !user.mobileNumber) continue;
-
-    const userApps = updatedRecords.filter(r => r.userId === userId);
-    if (userApps.length > 0) {
-       await ipoNotificationService.notifyResult(user.mobileNumber, ipo.companyName, userApps, accountMap);
+  for (const [userId, liveApps] of userLiveApps.entries()) {
+    if (liveApps.length > 0) {
+      await ipoNotificationService.notifyResultForUserLive(userId, ipo.companyName, liveApps);
     }
   }
 

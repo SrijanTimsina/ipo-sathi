@@ -29,7 +29,7 @@ import {
   Check,
   Loader2,
   RefreshCw,
-  User,
+  Info,
 } from 'lucide-react'
 import type { IpoStatus } from '#/shared/types/api'
 import { cn } from '#/lib/utils'
@@ -105,6 +105,15 @@ const statusUiMap: Record<
     borderClass: 'border-red-500/30',
     textClass: 'text-red-500',
     icon: <XCircle className="h-8 w-8 text-red-500" />,
+  },
+  not_applied: {
+    label: 'Not Applied',
+    color: 'text-orange-500',
+    bgClass: 'bg-orange-500/10',
+    solidBgClass: 'bg-orange-500',
+    borderClass: 'border-orange-500/30',
+    textClass: 'text-orange-500',
+    icon: <Info className="h-8 w-8 text-orange-500" />,
   },
 }
 
@@ -377,19 +386,19 @@ function IpoResultsContent() {
                           </div>
                           <div
                             className={cn(
-                              'text-sm flex items-center gap-2',
+                              'text-sm flex flex-col gap-0.5 mt-0.5',
                               uiMap.textClass,
                             )}
                           >
                             <span>
-                              {uiMap.label} ( quantity :{' '}
+                              {uiMap.label} (quantity:{' '}
                               {app.quantity ??
-                                (app.status === 'allotted' ? '—' : '10')}{' '}
+                                (app.status === 'allotted' ? '—' : '10')}
                               )
                             </span>
                             {(app.status === 'not_allotted' ||
                               app.status === 'error') && (
-                              <span>
+                              <span className="opacity-90 leading-snug">
                                 {app.status === 'error' && app.errorMessage
                                   ? app.errorMessage
                                   : app.meroShareRemark

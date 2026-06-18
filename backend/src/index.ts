@@ -19,19 +19,7 @@ cron.schedule(
   "10 10 * * *",
   () => {
     console.log("[Cron] Running morning IPO automation (10:10 AM NPT)...");
-    void runIpoAutomation();
-  },
-  {
-    timezone: "Asia/Kathmandu",
-  },
-);
-
-// Runs every day at 1:45 PM Nepal Time
-cron.schedule(
-  "45 13 * * *",
-  () => {
-    console.log("[Cron] Running afternoon IPO automation (1:45 PM NPT)...");
-    void runIpoAutomation();
+    void runIpoAutomation({ isMorningCron: true });
   },
   {
     timezone: "Asia/Kathmandu",
@@ -43,7 +31,7 @@ cron.schedule(
   "10 16 * * *",
   () => {
     console.log("[Cron] Running evening IPO automation (4:10 PM NPT)...");
-    void runIpoAutomation();
+    void runIpoAutomation({ isEveningCron: true });
   },
   {
     timezone: "Asia/Kathmandu",

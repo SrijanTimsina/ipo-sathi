@@ -135,6 +135,7 @@ function IpoStatusContent() {
 
   const {
     data: appliedIpos,
+    isLoading: isLoadingIpos,
     isError: isErrorIpos,
     refetch: refetchIpos,
   } = useAppliedIpos()
@@ -206,7 +207,12 @@ function IpoStatusContent() {
           <span>Listed IPO/FPO</span>
         </div>
 
-        {appliedIpos && appliedIpos.length > 0 ? (
+        {isLoadingIpos ? (
+          <div className="h-12 rounded-xl border border-border/50 bg-white/5 flex items-center px-4 text-muted-foreground text-sm animate-pulse">
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Loading IPOs...
+          </div>
+        ) : appliedIpos && appliedIpos.length > 0 ? (
           <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
             <PopoverTrigger asChild>
               <Button
@@ -306,6 +312,17 @@ function IpoStatusContent() {
             void refetchStatus()
           }}
         />
+      ) : isLoadingIpos ? (
+        <div className="space-y-4 pt-6 border-t border-border/50">
+          <div className="space-y-4 mt-6">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-28 rounded-2xl bg-white/5 animate-pulse border border-white/5"
+              />
+            ))}
+          </div>
+        </div>
       ) : !appliedIpos || appliedIpos.length === 0 ? (
         <EmptyState
           icon={<CheckSquare className="h-12 w-12" />}
@@ -417,20 +434,19 @@ function IpoStatusContent() {
                         </div>
                         <div
                           className={cn(
-                            'text-sm flex items-center gap-2',
+                            'text-sm flex flex-col gap-0.5 mt-0.5',
                             uiMap.textClass,
                           )}
                         >
                           <span>
-                            {uiMap.label} ( quantity :{' '}
+                            {uiMap.label} (quantity:{' '}
                             {app.quantity ??
-                              (app.status === 'allotted' ? '—' : '10')}{' '}
-                            )
+                              (app.status === 'allotted' ? '—' : '10')})
                           </span>
                           {(app.status === 'not_allotted' ||
                             app.status === 'error' ||
                             app.status === 'not_applied') && (
-                            <span>
+                            <span className="opacity-90 leading-snug">
                               {app.status === 'error' && app.errorMessage
                                 ? app.errorMessage
                                 : app.status === 'not_applied'

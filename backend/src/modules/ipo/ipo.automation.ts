@@ -3,11 +3,19 @@ import { accountsRepo } from "../accounts/accounts.repo.js";
 import { MeroShareClient } from "./ipo.meroshare.client.js";
 import { applyForAccount, reapplyForAccount } from "./ipo.service.js";
 import { ipoRepo } from "./ipo.repo.js";
-import { ipoNotificationService } from "./ipo.notification.service.js";
+import {
+  ipoNotificationService,
+  type LiveApplicationStatus,
+} from "./ipo.notification.service.js";
 import { config } from "../../config/index.js";
 import { usersRepo } from "../users/users.repo.js";
 
-export async function runIpoAutomation() {
+export async function runIpoAutomation(options?: {
+  testAccountId?: string;
+  isMorningCron?: boolean;
+  isEveningCron?: boolean;
+}) {
+  const { testAccountId, isMorningCron, isEveningCron } = options || {};
   console.info("Starting IPO Automation process...");
 
   // 1. Fetch reference account
@@ -94,7 +102,15 @@ export async function runIpoAutomation() {
   }
 
   // 5. Fetch all active accounts
-  const allAccounts = await accountsService.getAllActiveDecryptedAccounts();
+  let allAccounts = await accountsService.getAllActiveDecryptedAccounts();
+
+  if (testAccountId) {
+    allAccounts = allAccounts.filter((acc) => acc.userId === testAccountId);
+    console.info(
+      `[TEST MODE] Filtering automation to run ONLY for account ID: ${testAccountId}`,
+    );
+  }
+
   console.info(
     `Found ${allAccounts.length} active accounts to process for ${iposToProcess.size} IPO(s).`,
   );
@@ -118,22 +134,26 @@ export async function runIpoAutomation() {
       issueCloseDate: ipo.issueCloseDate,
     });
 
+    const userLiveApps = new Map<string, LiveApplicationStatus[]>();
+    const userAccounts = new Map<string, any[]>();
+
+    for (const acc of allAccounts) {
+      if (!userLiveApps.has(acc.userId)) userLiveApps.set(acc.userId, []);
+      if (!userAccounts.has(acc.userId)) userAccounts.set(acc.userId, []);
+      userAccounts.get(acc.userId)!.push(acc);
+    }
+
     // We process each account sequentially to respect rate limits
     for (const account of allAccounts) {
-      // Create or fetch the record for this account and IPO
-      let record = await ipoRepo.findByAccountAndIpo(
-        account.id,
-        String(ipo.companyShareId),
-      );
-      if (!record) {
-        record = await ipoRepo.createApplication({
-          userId: account.userId,
-          brokerAccountId: account.id,
-          ipoId: String(ipo.companyShareId),
-          ipoName: ipo.companyName,
-          status: "pending",
-        });
-      }
+      let finalStatus:
+        | "applied"
+        | "pending"
+        | "allotted"
+        | "not_allotted"
+        | "error" = "pending";
+      let errorMsg: string | null = null;
+      let isVerified = false;
+      let isRejected = false;
 
       try {
         const accClient = new MeroShareClient();
@@ -151,26 +171,19 @@ export async function runIpoAutomation() {
             console.info(
               `[Automation] Account ${account.username} - Applying for ${ipo.companyName}`,
             );
-            await applyForAccount(
-              account,
-              {
-                companyShareId: ipo.companyShareId,
-                ipoName: ipo.companyName,
-                kittas: 10,
-              },
-              record.id,
-            );
-            await ipoRepo.updateStatus(record.id, "pending");
+            await applyForAccount(account, {
+              companyShareId: ipo.companyShareId,
+              ipoName: ipo.companyName,
+              kittas: 10,
+            });
+            finalStatus = "pending";
             successfulApplications++;
           } else {
             // either closed or autoApply disabled
-            if (record.status !== "error") {
-              await ipoRepo.updateStatus(
-                record.id,
-                "error",
-                ipo.isOpen ? "Auto-apply disabled" : "Did not apply via system",
-              );
-            }
+            finalStatus = "error";
+            errorMsg = ipo.isOpen
+              ? "Auto-apply disabled"
+              : "Did not apply via system";
           }
         } else {
           // Already applied, get detail to know exact verification status
@@ -178,8 +191,8 @@ export async function runIpoAutomation() {
             accToken,
             existingApp.applicantFormId,
           );
-          const isVerified = detail.statusName === "Verified";
-          const isRejected =
+          isVerified = detail.statusName === "Verified";
+          isRejected =
             detail.statusName === "Rejected" ||
             existingApp.statusName === "BLOCK_FAILED";
           const isAllotmentResultApproved =
@@ -198,8 +211,9 @@ export async function runIpoAutomation() {
             );
             try {
               await reapplyForAccount(account, existingApp.applicantFormId);
-              await ipoRepo.updateStatus(record.id, "pending");
-              
+              finalStatus = "pending";
+              isRejected = false; // Successfully reapplied, no longer rejected
+
               // Notify user about the automatic re-application
               const userObj = await usersRepo.findById(account.userId);
               if (userObj?.mobileNumber) {
@@ -207,17 +221,17 @@ export async function runIpoAutomation() {
                   userObj.mobileNumber,
                   ipo.companyName,
                   account.name || account.username,
-                  detail.reason || "Block Failed"
+                  detail.reason || "Block Failed",
                 );
               }
-              
+
               successfulApplications++;
             } catch (reapplyErr: any) {
-              const errorMsg = reapplyErr.message || "Unknown error";
-              await ipoRepo.updateStatus(record.id, "error", errorMsg);
-              // Mark notification status as rejected so evaluateAndNotify ignores it
-              await ipoRepo.updateNotificationStatus(record.id, "rejected"); 
-              
+              const errMsg = reapplyErr.message || "Unknown error";
+              finalStatus = "error";
+              errorMsg = errMsg;
+              isRejected = true; // Mark as rejected again so it triggers Rule 2
+
               const userObj = await usersRepo.findById(account.userId);
               if (userObj?.mobileNumber) {
                 await ipoNotificationService.notifyReapplyFailed(
@@ -225,16 +239,12 @@ export async function runIpoAutomation() {
                   ipo.companyName,
                   account.name || account.username,
                   detail.reason || "Block Failed",
-                  errorMsg
+                  errMsg,
                 );
               }
               failedApplications++;
             }
           } else {
-            // determine final status matching ipo.service.ts
-            let finalStatus = record.status;
-            let errorMsg = record.errorMessage;
-
             if (isRejected) {
               finalStatus = "error";
               errorMsg = detail.reason || "Block failed / Rejected";
@@ -264,16 +274,6 @@ export async function runIpoAutomation() {
               errorMsg = null;
             }
 
-            if (
-              record.status !== finalStatus ||
-              record.errorMessage !== errorMsg
-            ) {
-              await ipoRepo.updateStatus(
-                record.id,
-                finalStatus as any,
-                errorMsg || undefined,
-              );
-            }
             console.debug(
               `[Automation] Account ${account.username} - Already applied for ${ipo.companyName} (status: ${finalStatus})`,
             );
@@ -284,25 +284,32 @@ export async function runIpoAutomation() {
         failedApplications++;
         const message = err instanceof Error ? err.message : "Unknown error";
         if (message === "Already applied to this IPO") {
-          await ipoRepo.updateStatus(
-            record.id,
-            "pending",
-            "Skipped: Already applied",
-          );
+          finalStatus = "pending";
+          errorMsg = "Skipped: Already applied";
         } else {
-          await ipoRepo.updateStatus(record.id, "error", message);
+          finalStatus = "error";
+          errorMsg = message;
           console.error(
             `[Automation] Account ${account.username} failed to apply for ${ipo.companyName}: ${message}`,
           );
         }
       }
 
+      userLiveApps.get(account.userId)!.push({
+        brokerAccountId: account.id,
+        accountName: account.name || account.username,
+        isVerified,
+        isRejected,
+        errorMessage: errorMsg,
+        status: finalStatus,
+      });
+
       // Add a small delay between accounts to prevent IP blocks
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
     // Evaluate notifications for this IPO
-    const uniqueUserIds = [...new Set(allAccounts.map((a) => a.userId))];
+    const uniqueUserIds = [...userLiveApps.keys()];
 
     if (isIpoResultPublished) {
       const dbIpo = unpublishedIpos.find(
@@ -310,24 +317,13 @@ export async function runIpoAutomation() {
       );
       if (dbIpo) {
         // Result was unpublished before, but is now published!
-        // Notify all users.
         for (const userId of uniqueUserIds) {
-          const userApps = await ipoRepo.findByUserId(
-            userId,
-            String(ipo.companyShareId),
-          );
-          if (userApps.length > 0) {
-            const userAccounts =
-              await accountsService.getDecryptedAccountsForUser(userId);
-            const accountMap = new Map(
-              userAccounts.map((a) => [a.id, a.name || a.username]),
-            );
-            await ipoNotificationService.notifyResultForUser(
+          const liveApps = userLiveApps.get(userId) || [];
+          if (liveApps.length > 0) {
+            await ipoNotificationService.notifyResultForUserLive(
               userId,
-              String(ipo.companyShareId),
               ipo.companyName,
-              userApps,
-              accountMap,
+              liveApps,
             );
           }
         }
@@ -336,12 +332,19 @@ export async function runIpoAutomation() {
     } else {
       // Normal evaluation
       for (const userId of uniqueUserIds) {
-        await ipoNotificationService.evaluateAndNotify(
+        const liveApps = userLiveApps.get(userId) || [];
+        const accounts = userAccounts.get(userId) || [];
+        await ipoNotificationService.evaluateAndNotifyLive(
           userId,
           String(ipo.companyShareId),
           ipo.companyName,
+          liveApps,
+          accounts,
           ipo.issueOpenDate?.toISOString(),
           ipo.issueCloseDate?.toISOString(),
+          ipo.isOpen,
+          isMorningCron,
+          isEveningCron,
         );
       }
     }
