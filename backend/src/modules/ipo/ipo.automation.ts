@@ -154,6 +154,8 @@ export async function runIpoAutomation(options?: {
       let errorMsg: string | null = null;
       let isVerified = false;
       let isRejected = false;
+      let reapplied = false;
+      let reapplyFailed = false;
 
       try {
         const accClient = new MeroShareClient();
@@ -213,35 +215,15 @@ export async function runIpoAutomation(options?: {
               await reapplyForAccount(account, existingApp.applicantFormId);
               finalStatus = "pending";
               isRejected = false; // Successfully reapplied, no longer rejected
-
-              // Notify user about the automatic re-application
-              const userObj = await usersRepo.findById(account.userId);
-              if (userObj?.mobileNumber) {
-                await ipoNotificationService.notifyReapplied(
-                  userObj.mobileNumber,
-                  ipo.companyName,
-                  account.name || account.username,
-                  detail.reason || "Block Failed",
-                );
-              }
-
+              reapplied = true;
               successfulApplications++;
             } catch (reapplyErr: any) {
               const errMsg = reapplyErr.message || "Unknown error";
               finalStatus = "error";
               errorMsg = errMsg;
               isRejected = true; // Mark as rejected again so it triggers Rule 2
+              reapplyFailed = true;
 
-              const userObj = await usersRepo.findById(account.userId);
-              if (userObj?.mobileNumber) {
-                await ipoNotificationService.notifyReapplyFailed(
-                  userObj.mobileNumber,
-                  ipo.companyName,
-                  account.name || account.username,
-                  detail.reason || "Block Failed",
-                  errMsg,
-                );
-              }
               failedApplications++;
             }
           } else {
@@ -302,6 +284,8 @@ export async function runIpoAutomation(options?: {
         isRejected,
         errorMessage: errorMsg,
         status: finalStatus,
+        reapplied,
+        reapplyFailed,
       });
 
       // Add a small delay between accounts to prevent IP blocks

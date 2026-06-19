@@ -227,17 +227,17 @@ function IpoStatusContent() {
                         (i) => String(i.companyShareId) === selectedIpoId,
                       )
                       return ipo ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden pr-2">
                           <Badge
                             variant="outline"
                             className={cn(
-                              'text-[10px] uppercase font-bold py-0 tracking-widest',
+                              'text-[10px] uppercase font-bold py-0 tracking-widest shrink-0',
                               getShareTypeColor(ipo.shareTypeName),
                             )}
                           >
                             {ipo.shareTypeName}
                           </Badge>
-                          <span className="font-medium text-sm">
+                          <span className="font-medium text-sm truncate">
                             {ipo.companyName} ({ipo.scrip})
                           </span>
                         </div>
@@ -250,7 +250,7 @@ function IpoStatusContent() {
               </Button>
             </PopoverTrigger>
             <PopoverContent
-              className="w-[var(--radix-popover-trigger-width)] p-0 bg-[#1a1a1a] border-border/50"
+              className="w-(--radix-popover-trigger-width) p-0 bg-[#1a1a1a] border-border/50"
               align="start"
             >
               <Command className="bg-transparent">
@@ -276,17 +276,17 @@ function IpoStatusContent() {
                               : 'opacity-0',
                           )}
                         />
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-1 min-w-0 overflow-hidden pr-2">
                           <Badge
                             variant="outline"
                             className={cn(
-                              'text-[10px] uppercase font-bold py-0 tracking-widest',
+                              'text-[10px] uppercase font-bold py-0 tracking-widest shrink-0',
                               getShareTypeColor(ipo.shareTypeName),
                             )}
                           >
                             {ipo.shareTypeName}
                           </Badge>
-                          <span className="font-medium text-sm">
+                          <span className="font-medium text-sm truncate">
                             {ipo.companyName} ({ipo.scrip})
                           </span>
                         </div>
@@ -441,7 +441,8 @@ function IpoStatusContent() {
                           <span>
                             {uiMap.label} (quantity:{' '}
                             {app.quantity ??
-                              (app.status === 'allotted' ? '—' : '10')})
+                              (app.status === 'allotted' ? '—' : '10')}
+                            )
                           </span>
                           {(app.status === 'not_allotted' ||
                             app.status === 'error' ||
@@ -461,7 +462,6 @@ function IpoStatusContent() {
                             </span>
                           )}
                         </div>
-
                       </div>
                     </div>
 
