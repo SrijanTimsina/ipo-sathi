@@ -9,6 +9,7 @@ import { AppLayout } from '#/shared/components/AppLayout'
 import {
   useAccount,
   useUpdateAccount,
+  useAccountBanks,
 } from '#/app/accounts/api/accounts.queries'
 import { useCapitals } from '#/app/ipo/api/ipo.queries'
 import { PageSkeleton } from '#/shared/components/LoadingSkeleton'
@@ -52,6 +53,7 @@ const updateSchema = z.object({
   password: z.string().optional(),
   crn: z.string().min(1).optional(),
   pin: z.string().optional(),
+  bankId: z.number().optional(),
   isActive: z.boolean().optional(),
   autoApply: z.boolean().optional(),
   autoReApply: z.boolean().optional(),
@@ -75,7 +77,9 @@ function EditAccountContent() {
   const { data: account, isLoading, isError, refetch } = useAccount(id)
   const updateAccount = useUpdateAccount(id)
   const { data: capitals } = useCapitals()
+  const { data: banks } = useAccountBanks(id)
   const [open, setOpen] = useState(false)
+  const [bankOpen, setBankOpen] = useState(false)
 
   const form = useForm<UpdateForm>({
     resolver: zodResolver(updateSchema),
@@ -99,18 +103,19 @@ function EditAccountContent() {
         crn: account.crn,
         password: account.password || '',
         pin: account.pin || '',
+        bankId: account.bankId ?? (banks?.length === 1 ? banks[0].id : undefined),
         isActive: account.isActive,
         autoApply: account.autoApply,
         autoReApply: account.autoReApply,
       })
     }
-  }, [account, form])
+  }, [account, form, banks])
 
   async function onSubmit(values: UpdateForm): Promise<void> {
-    // Strip empty optional fields, but keep booleans
+    // Strip empty optional fields, but keep booleans and numbers
     const payload = Object.fromEntries(
       Object.entries(values).filter(([, v]) => {
-        if (typeof v === 'boolean') return true
+        if (typeof v === 'boolean' || typeof v === 'number') return true
         return typeof v === 'string' && v.trim() !== ''
       }),
     ) as UpdateForm
@@ -251,6 +256,66 @@ function EditAccountContent() {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="bankId"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Bank Account</FormLabel>
+                    <Popover open={bankOpen} onOpenChange={setBankOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              'w-full justify-between font-normal',
+                              !field.value && 'text-muted-foreground',
+                            )}
+                          >
+                            {field.value
+                              ? banks?.find(b => b.id === field.value)?.name
+                              : 'Select Bank'}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search bank..." />
+                          <CommandList>
+                            <CommandEmpty>No bank found.</CommandEmpty>
+                            <CommandGroup>
+                              {banks?.map((bank) => (
+                                <CommandItem
+                                  value={bank.name}
+                                  key={bank.id}
+                                  onSelect={() => {
+                                    form.setValue('bankId', bank.id)
+                                    setBankOpen(false)
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      'mr-2 h-4 w-4',
+                                      bank.id === field.value
+                                        ? 'opacity-100'
+                                        : 'opacity-0',
+                                    )}
+                                  />
+                                  {bank.name}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField

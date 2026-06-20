@@ -15,6 +15,7 @@ const createAccountSchema = z.object({
   password: z.string().min(1),
   crn: z.string().min(1).max(100),
   pin: z.string().min(1).max(20),
+  bankId: z.number().int().positive().optional(),
   autoApply: z.boolean().optional(),
   autoReApply: z.boolean().optional(),
 });
@@ -25,9 +26,16 @@ const updateAccountSchema = z.object({
   password: z.string().min(1).optional(),
   crn: z.string().min(1).max(100).optional(),
   pin: z.string().min(1).max(20).optional(),
+  bankId: z.number().int().positive().optional(),
   isActive: z.boolean().optional(),
   autoApply: z.boolean().optional(),
   autoReApply: z.boolean().optional(),
+});
+
+const fetchBanksSchema = z.object({
+  clientId: z.string().min(1),
+  username: z.string().min(1),
+  password: z.string().min(1),
 });
 
 function getUserId(req: Request): string {
@@ -96,5 +104,28 @@ export const accountsController = {
     if (!id) throw new AppError(400, "MISSING_PARAM", "Account ID is required");
     await accountsService.deleteAccount(getUserId(req), id);
     sendSuccess(res, { message: "Account deleted successfully" });
+  },
+
+  /**
+   * POST /api/v1/accounts/meroshare/banks
+   */
+  async fetchMeroshareBanks(req: Request, res: Response): Promise<void> {
+    const parsed = fetchBanksSchema.safeParse(req.body);
+    if (!parsed.success) {
+      sendError(res, 400, "VALIDATION_ERROR", parsed.error.issues.map((e: any) => e.message).join(", "));
+      return;
+    }
+    const banks = await accountsService.fetchMeroshareBanks(parsed.data.clientId, parsed.data.username, parsed.data.password);
+    sendSuccess(res, banks);
+  },
+
+  /**
+   * GET /api/v1/accounts/:id/meroshare/banks
+   */
+  async fetchBanksForAccount(req: Request, res: Response): Promise<void> {
+    const id = req.params.id as string;
+    if (!id) throw new AppError(400, "MISSING_PARAM", "Account ID is required");
+    const banks = await accountsService.fetchBanksForAccount(getUserId(req), id);
+    sendSuccess(res, banks);
   },
 };

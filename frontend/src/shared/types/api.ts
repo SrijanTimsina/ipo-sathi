@@ -53,6 +53,7 @@ export interface BrokerAccount {
   demat?: string | null
   clientCode?: string | null
   crn: string
+  bankId?: number | null
   isActive: boolean
   autoApply: boolean
   autoReApply: boolean

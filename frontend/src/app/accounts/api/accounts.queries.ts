@@ -52,3 +52,18 @@ export function useDeleteAccount() {
     },
   });
 }
+
+export function useFetchMeroshareBanks() {
+  return useMutation({
+    mutationFn: (payload: Pick<CreateAccountPayload, "clientId" | "username" | "password">) => 
+      accountsRequests.fetchMeroshareBanks(payload),
+  });
+}
+
+export function useAccountBanks(accountId: string) {
+  return useQuery({
+    queryKey: ["accounts", "banks", accountId],
+    queryFn: () => accountsRequests.fetchBanksForAccount(accountId),
+    enabled: Boolean(accountId),
+  });
+}

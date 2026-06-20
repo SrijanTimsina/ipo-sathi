@@ -11,6 +11,7 @@ export interface CreateAccountInput {
   password: string;
   crn: string;
   pin: string;
+  bankId?: number;
   autoApply?: boolean;
   autoReApply?: boolean;
 }
@@ -21,6 +22,7 @@ export interface UpdateAccountInput {
   password?: string;
   crn?: string;
   pin?: string;
+  bankId?: number;
   isActive?: boolean;
   autoApply?: boolean;
   autoReApply?: boolean;
@@ -39,6 +41,7 @@ export interface DecryptedAccount {
   password: string;
   crn: string;
   pin: string;
+  bankId: number | null;
   isActive: boolean;
   autoApply: boolean;
   autoReApply: boolean;
@@ -56,6 +59,7 @@ function toDecrypted(account: SelectBrokerAccount): DecryptedAccount {
     password: decrypt(account.passwordEncrypted),
     crn: account.crn,
     pin: decrypt(account.pinEncrypted),
+    bankId: account.bankId,
     isActive: account.isActive,
     autoApply: account.autoApply,
     autoReApply: account.autoReApply,
@@ -126,6 +130,7 @@ export const accountsService = {
         name: null,
         demat: null,
         clientCode: null,
+        bankId: null,
       });
     } catch (error: any) {
       throw new AppError(
@@ -157,6 +162,7 @@ export const accountsService = {
       passwordEncrypted: encrypt(input.password),
       crn: input.crn,
       pinEncrypted: encrypt(input.pin),
+      bankId: input.bankId ?? null,
       isActive: true,
       autoApply: input.autoApply ?? true,
       autoReApply: input.autoReApply ?? true,
@@ -212,6 +218,7 @@ export const accountsService = {
           name: account.name,
           demat: account.demat,
           clientCode: account.clientCode,
+          bankId: account.bankId,
         });
       } catch (error: any) {
         throw new AppError(
@@ -237,6 +244,7 @@ export const accountsService = {
       ...(input.crn && { crn: input.crn }),
       ...(input.password && { passwordEncrypted: encrypt(input.password) }),
       ...(input.pin && { pinEncrypted: encrypt(input.pin) }),
+      ...(input.bankId !== undefined && { bankId: input.bankId }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
       ...(input.autoApply !== undefined && { autoApply: input.autoApply }),
       ...(input.autoReApply !== undefined && { autoReApply: input.autoReApply }),
@@ -302,5 +310,57 @@ export const accountsService = {
   async getAllActiveDecryptedAccounts(): Promise<DecryptedAccount[]> {
     const accounts = await accountsRepo.findAllActive();
     return accounts.map(toDecrypted);
+  },
+
+  /**
+   * Fetch bank list directly from MeroShare (stateless, used for Add Account wizard step 2)
+   */
+  async fetchMeroshareBanks(clientId: string, username: string, password: string) {
+    const client = new MeroShareClient();
+    try {
+      const token = await client.authenticate({
+        id: "",
+        userId: "",
+        clientId,
+        username,
+        password,
+        crn: "",
+        pin: "",
+        isActive: true,
+        autoApply: true,
+        autoReApply: true,
+        name: null,
+        demat: null,
+        clientCode: null,
+        bankId: null,
+      });
+      const banks = await client.getBankList(token);
+      return banks;
+    } catch (error: any) {
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
+        error.message || "MeroShare authentication failed.",
+      );
+    }
+  },
+
+  /**
+   * Fetch bank list for an existing account
+   */
+  async fetchBanksForAccount(userId: string, accountId: string) {
+    const account = await this.getOwnAccount(userId, accountId);
+    const client = new MeroShareClient();
+    try {
+      const token = await client.authenticate(account);
+      const banks = await client.getBankList(token);
+      return banks;
+    } catch (error: any) {
+      throw new AppError(
+        400,
+        "VALIDATION_ERROR",
+        error.message || "Failed to fetch banks for account.",
+      );
+    }
   },
 };

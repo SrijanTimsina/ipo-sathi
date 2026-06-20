@@ -500,28 +500,16 @@ async function buildApplicationPayload(
   // Step 3: Get client BOID detail (contains bankCode)
   const boidDetail = await client.getClientBoidDetail(token, ownDetail.demat);
 
-  // Step 4: Get bank details — try by bankCode first, fall back to bank list
   let applicationPayload: ApplyIpoPayload;
 
-  const bankByCode = await client.getBankDetailByCode(
-    token,
-    boidDetail.bankCode,
-  );
-
-  if (!bankByCode) {
-    // Fallback: get first bank from list
-    const bankList = await client.getBankList(token);
-    if (bankList.length === 0) throw new Error("No banks found for account");
-
-    const firstBank = bankList[0]!;
-    const customerCode = await client.getBankCustomerCode(token, firstBank.id);
-
+  if (account.bankId) {
+    const customerCode = await client.getBankCustomerCode(token, account.bankId);
     applicationPayload = {
       accountBranchId: customerCode.accountBranchId,
       accountNumber: customerCode.accountNumber,
       accountTypeId: customerCode.accountTypeId ?? 1,
       appliedKitta: kittas,
-      bankId: firstBank.id,
+      bankId: account.bankId,
       boid: ownDetail.boid,
       companyShareId: companyShareId,
       crnNumber: account.crn,
@@ -530,31 +518,61 @@ async function buildApplicationPayload(
       transactionPIN: account.pin,
     };
   } else {
-    // Use bank details from bankCode response
-    const bankInfo = bankByCode.bank;
-    const bankId = Array.isArray(bankInfo) ? bankInfo[0]!.id : bankInfo.id;
+    // Step 4: Get bank details — try by bankCode first, fall back to bank list
+    const bankByCode = await client.getBankDetailByCode(
+      token,
+      boidDetail.bankCode,
+    );
 
-    const customerCode = await client.getBankCustomerCode(token, bankId);
+    if (!bankByCode) {
+      // Fallback: get first bank from list
+      const bankList = await client.getBankList(token);
+      if (bankList.length === 0) throw new Error("No banks found for account");
 
-    const branchInfo = bankByCode.branch;
-    const branchId = Array.isArray(branchInfo)
-      ? branchInfo[0]!.id
-      : branchInfo.id;
+      const firstBank = bankList[0]!;
+      const customerCode = await client.getBankCustomerCode(token, firstBank.id);
 
-    applicationPayload = {
-      accountBranchId: branchId,
-      accountNumber: bankByCode.accountNumber,
-      accountTypeId: (bankByCode.accountTypeId as number | undefined) ?? 1,
-      appliedKitta: kittas,
-      bankId,
-      boid: ownDetail.boid,
-      companyShareId: companyShareId,
-      crnNumber: account.crn,
-      customerId: customerCode.id,
-      demat: boidDetail.boid,
-      transactionPIN: account.pin,
-    };
+      applicationPayload = {
+        accountBranchId: customerCode.accountBranchId,
+        accountNumber: customerCode.accountNumber,
+        accountTypeId: customerCode.accountTypeId ?? 1,
+        appliedKitta: kittas,
+        bankId: firstBank.id,
+        boid: ownDetail.boid,
+        companyShareId: companyShareId,
+        crnNumber: account.crn,
+        customerId: customerCode.id,
+        demat: boidDetail.boid,
+        transactionPIN: account.pin,
+      };
+    } else {
+      // Use bank details from bankCode response
+      const bankInfo = bankByCode.bank;
+      const bankId = Array.isArray(bankInfo) ? bankInfo[0]!.id : bankInfo.id;
+
+      const customerCode = await client.getBankCustomerCode(token, bankId);
+
+      const branchInfo = bankByCode.branch;
+      const branchId = Array.isArray(branchInfo)
+        ? branchInfo[0]!.id
+        : branchInfo.id;
+
+      applicationPayload = {
+        accountBranchId: branchId,
+        accountNumber: bankByCode.accountNumber,
+        accountTypeId: (bankByCode.accountTypeId as number | undefined) ?? 1,
+        appliedKitta: kittas,
+        bankId,
+        boid: ownDetail.boid,
+        companyShareId: companyShareId,
+        crnNumber: account.crn,
+        customerId: customerCode.id,
+        demat: boidDetail.boid,
+        transactionPIN: account.pin,
+      };
+    }
   }
 
   return applicationPayload;
 }
+

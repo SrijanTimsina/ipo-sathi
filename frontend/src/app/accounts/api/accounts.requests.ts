@@ -7,6 +7,7 @@ export interface CreateAccountPayload {
   password: string;
   crn: string;
   pin: string;
+  bankId?: number;
   autoApply?: boolean;
   autoReApply?: boolean;
 }
@@ -17,9 +18,16 @@ export interface UpdateAccountPayload {
   password?: string;
   crn?: string;
   pin?: string;
+  bankId?: number;
   isActive?: boolean;
   autoApply?: boolean;
   autoReApply?: boolean;
+}
+
+export interface BankListResponse {
+  id: number;
+  code: string;
+  name: string;
 }
 
 export const accountsRequests = {
@@ -48,5 +56,15 @@ export const accountsRequests = {
 
   async delete(id: string): Promise<void> {
     await apiClient.delete(`/accounts/${id}`);
+  },
+
+  async fetchMeroshareBanks(payload: Pick<CreateAccountPayload, "clientId" | "username" | "password">): Promise<BankListResponse[]> {
+    const res = await apiClient.post<ApiSuccess<BankListResponse[]>>("/accounts/meroshare/banks", payload);
+    return res.data.data;
+  },
+
+  async fetchBanksForAccount(id: string): Promise<BankListResponse[]> {
+    const res = await apiClient.get<ApiSuccess<BankListResponse[]>>(`/accounts/${id}/meroshare/banks`);
+    return res.data.data;
   },
 };

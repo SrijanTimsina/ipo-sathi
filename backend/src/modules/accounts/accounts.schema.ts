@@ -4,6 +4,7 @@ import {
   varchar,
   boolean,
   timestamp,
+  integer,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
@@ -28,6 +29,7 @@ export const brokerAccounts = pgTable("broker_accounts", {
   crn: varchar("crn", { length: 100 }).notNull(),
   // Pin is also encrypted since it's used as a transaction PIN
   pinEncrypted: varchar("pin_encrypted", { length: 512 }).notNull(),
+  bankId: integer("bank_id"), // Optional for existing, required for new
   isActive: boolean("is_active").notNull().default(true),
   autoApply: boolean("auto_apply").notNull().default(true),
   autoReApply: boolean("auto_reapply").notNull().default(true),

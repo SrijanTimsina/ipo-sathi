@@ -10,18 +10,13 @@ import {
   useIpoStatus,
 } from '#/app/ipo/api/ipo.queries'
 import { useAccounts } from '#/app/accounts/api/accounts.queries'
+import type { IpoApplication } from '#/shared/types/api'
 import { TableSkeleton } from '#/shared/components/LoadingSkeleton'
 import { ErrorMessage, EmptyState } from '#/shared/components/ErrorMessage'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '#/components/ui/card'
+import { Card, CardContent } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
 import { Checkbox } from '#/components/ui/checkbox'
 import {
@@ -32,8 +27,6 @@ import {
   SelectValue,
 } from '#/components/ui/select'
 import { TrendingUp, ArrowLeft, Loader2 } from 'lucide-react'
-import type { BulkApplyResult } from '#/shared/types/api'
-import { cn } from '#/lib/utils'
 
 function formatDateToMonthDay(dateString?: string) {
   if (!dateString) return 'N/A'
@@ -91,6 +84,7 @@ function ApplyContent() {
   const [kittas, setKittas] = useState<string>('10')
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
   const [applyAll, setApplyAll] = useState(true)
+  const [applyResults, setApplyResults] = useState<IpoApplication[]>([])
 
   const selectedIpo = ipos?.find(
     (i) => String(i.companyShareId) === selectedIpoId,
@@ -132,12 +126,10 @@ function ApplyContent() {
         kittas: kittaNum,
         accountIds: applyAll ? undefined : selectedAccountIds,
       })
+      setApplyResults(res.applications)
       await refetchStatus()
-      toast.success(
-        `Applied! ${res.successful}/${res.total} accounts successful.`,
-      )
     } catch {
-      toast.error('Bulk application failed. Check your accounts and try again.')
+      toast.error('Bulk application failed. Check your network and try again.')
     }
   }
 
@@ -324,9 +316,23 @@ function ApplyContent() {
                 {accounts?.data
                   .filter((a) => a.isActive)
                   .map((account) => {
-                    const accStatus = statusData?.find(
+                    let accStatus = statusData?.find(
                       (s) => s.brokerAccountId === account.id,
                     )
+                    const applyResult = applyResults.find(
+                      (a) => a.brokerAccountId === account.id,
+                    )
+
+                    // If we just attempted to apply and it errored, that takes precedence over whatever MeroShare reports (which might just say 'not_applied' because it failed to apply)
+                    if (applyResult && applyResult.status === 'error' && applyResult.errorMessage) {
+                      accStatus = {
+                        ...(accStatus || {}),
+                        status: applyResult.status,
+                        errorMessage: applyResult.errorMessage,
+                        ipoName: applyResult.ipoName || accStatus?.ipoName || 'Unknown IPO',
+                      } as IpoApplication
+                    }
+
                     const isApplied =
                       accStatus &&
                       (accStatus.status === 'applied' ||
@@ -394,12 +400,24 @@ function ApplyContent() {
                           onCheckedChange={() => toggleAccount(account.id)}
                         />
                         <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <Label
-                            htmlFor={`account-${account.id}`}
-                            className="cursor-pointer font-medium"
-                          >
-                            {account.name || account.username}
-                          </Label>
+                          <div className="flex flex-col gap-1">
+                            <Label
+                              htmlFor={`account-${account.id}`}
+                              className="cursor-pointer font-medium"
+                            >
+                              {account.name || account.username}
+                            </Label>
+                            {accStatus &&
+                              (accStatus.errorMessage ||
+                                accStatus.meroShareRemark) && (
+                                <span
+                                  className={`text-xs ${accStatus.status === 'error' ? 'text-red-500' : 'text-muted-foreground'}`}
+                                >
+                                  {accStatus.errorMessage ||
+                                    accStatus.meroShareRemark}
+                                </span>
+                              )}
+                          </div>
 
                           {accStatus && (
                             <Badge
