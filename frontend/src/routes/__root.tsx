@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import {
   HeadContent,
   Scripts,
@@ -34,9 +35,12 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content:
           'Manage your MeroShare accounts, view open IPOs, and apply in bulk across all your accounts with IPO Sathi.',
       },
+      { name: 'theme-color', content: '#ffffff' },
     ],
     links: [
       { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+      { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' },
+      { rel: 'manifest', href: '/manifest.json' },
       { rel: 'stylesheet', href: appCss },
     ],
   }),
@@ -44,6 +48,12 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(console.error)
+    }
+  }, [])
+
   return (
     <html lang="en">
       <head>

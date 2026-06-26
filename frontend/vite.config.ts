@@ -6,10 +6,27 @@ import { nitro } from 'nitro/vite'
 
 import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
-  plugins: [devtools(), tailwindcss(), tanstackStart(), nitro(), viteReact()],
+  plugins: [
+    devtools(),
+    tailwindcss(),
+    tanstackStart(),
+    nitro(),
+    viteReact(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      manifest: false,
+      outDir: '.output/public',
+      workbox: {
+        globDirectory: '.output/public',
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json}']
+      }
+    }),
+  ],
 })
 
 export default config
