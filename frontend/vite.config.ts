@@ -8,6 +8,8 @@ import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const outDir = process.env.VERCEL ? '.vercel/output/static' : '.output/public'
+
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
@@ -20,9 +22,9 @@ const config = defineConfig({
       registerType: 'autoUpdate',
       injectRegister: false,
       manifest: false,
-      outDir: '.output/public',
+      outDir,
       workbox: {
-        globDirectory: '.output/public',
+        globDirectory: outDir,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}']
       }
     }),
