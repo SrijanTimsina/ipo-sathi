@@ -5,11 +5,14 @@ import {
   setAccessToken,
   clearAccessToken,
   getAccessToken,
+  setRefreshToken,
+  clearRefreshToken,
 } from '../lib/axios.js'
 import type { AuthUser, ApiSuccess } from '../types/api.js'
 
 interface LoginPayload {
   accessToken: string
+  refreshToken: string
   user: AuthUser
 }
 
@@ -42,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         clearAccessToken()
+        clearRefreshToken()
         setUser(null)
       })
       .finally(() => {
@@ -58,8 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password,
         },
       )
-      const { accessToken, user: authUser } = res.data.data
+      const { accessToken, refreshToken, user: authUser } = res.data.data
       setAccessToken(accessToken)
+      setRefreshToken(refreshToken)
       setUser(authUser)
     },
     [],
@@ -70,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await apiClient.post('/auth/logout')
     } finally {
       clearAccessToken()
+      clearRefreshToken()
       setUser(null)
     }
   }, [])

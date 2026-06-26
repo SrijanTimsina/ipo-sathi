@@ -5,10 +5,8 @@ import { AppLayout } from '#/shared/components/AppLayout'
 import {
   useAccounts,
   useDeleteAccount,
-  accountsQueryKeys,
+  useUpdateAccount,
 } from '#/app/accounts/api/accounts.queries'
-import { accountsRequests } from '#/app/accounts/api/accounts.requests'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { TableSkeleton } from '#/shared/components/LoadingSkeleton'
 import { ErrorMessage, EmptyState } from '#/shared/components/ErrorMessage'
 import { Button } from '#/components/ui/button'
@@ -69,15 +67,9 @@ function AccountsContent() {
 
   const { data, isLoading, isError, refetch } = useAccounts(page)
   const deleteAccount = useDeleteAccount()
-  const queryClient = useQueryClient()
 
-  const updateAccountMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<BrokerAccount> }) =>
-      accountsRequests.update(id, payload),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all })
-      toast.success('Account preferences updated')
-    },
+  const updateAccountMutation = useUpdateAccount({
+    onSuccess: () => toast.success('Account preferences updated'),
     onError: () => toast.error('Failed to update account'),
   })
 

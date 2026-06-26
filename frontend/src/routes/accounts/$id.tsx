@@ -75,7 +75,7 @@ function EditAccountContent() {
   const { id } = Route.useParams()
   const router = useRouter()
   const { data: account, isLoading, isError, refetch } = useAccount(id)
-  const updateAccount = useUpdateAccount(id)
+  const updateAccount = useUpdateAccount()
   const { data: capitals } = useCapitals()
   const { data: banks } = useAccountBanks(id)
   const [open, setOpen] = useState(false)
@@ -121,7 +121,7 @@ function EditAccountContent() {
     ) as UpdateForm
 
     try {
-      await updateAccount.mutateAsync(payload)
+      await updateAccount.mutateAsync({ id, payload })
       toast.success('Account updated successfully')
       await router.navigate({ to: '/accounts' })
     } catch (error: any) {

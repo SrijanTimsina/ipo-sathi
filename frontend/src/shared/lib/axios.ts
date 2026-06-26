@@ -6,7 +6,6 @@ const BASE_URL =
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, // send HTTP-only refresh cookie
   headers: {
     'Content-Type': 'application/json',
   },
@@ -87,10 +86,14 @@ apiClient.interceptors.response.use(
       isRefreshing = true
 
       try {
+        const refreshToken = getRefreshToken()
+        if (!refreshToken) {
+          throw new Error('No refresh token available')
+        }
+
         const response = await axios.post<{ data: { accessToken: string } }>(
           `${BASE_URL}/auth/refresh`,
-          {},
-          { withCredentials: true },
+          { refreshToken }
         )
 
         const newToken = response.data.data.accessToken
@@ -102,6 +105,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null)
         clearAccessToken()
+        clearRefreshToken()
         // Redirect to login if refresh fails
         window.location.href = '/login'
         return Promise.reject(refreshError)
@@ -117,6 +121,7 @@ apiClient.interceptors.response.use(
 // ─── Token helpers ────────────────────────────────────────────────────────────
 
 const TOKEN_KEY = 'ipo_access_token'
+const REFRESH_TOKEN_KEY = 'ipo_refresh_token'
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -128,4 +133,16 @@ export function setAccessToken(token: string): void {
 
 export function clearAccessToken(): void {
   localStorage.removeItem(TOKEN_KEY)
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY)
+}
+
+export function setRefreshToken(token: string): void {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token)
+}
+
+export function clearRefreshToken(): void {
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
 }

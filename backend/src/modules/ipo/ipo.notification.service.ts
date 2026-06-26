@@ -8,7 +8,13 @@ export interface LiveApplicationStatus {
   isVerified: boolean;
   isRejected: boolean;
   errorMessage: string | null;
-  status: "applied" | "pending" | "allotted" | "not_allotted" | "error";
+  status:
+    | "applied"
+    | "not_applied"
+    | "pending"
+    | "allotted"
+    | "not_allotted"
+    | "error";
   quantity?: number;
   reapplied?: boolean;
   reapplyFailed?: boolean;
@@ -266,6 +272,8 @@ export const ipoNotificationService = {
       if (app.status === "allotted") {
         message += `✅ *${app.accountName}*: Allotted\n`;
       } else if (app.status === "not_allotted") {
+        message += `❌ *${app.accountName}*: Not Allotted\n`;
+      } else if (app.status === "not_applied") {
         message += `❌ *${app.accountName}*: Not Allotted\n`;
       } else if (
         app.errorMessage === "Auto-apply disabled" ||

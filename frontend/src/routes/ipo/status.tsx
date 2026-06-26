@@ -8,6 +8,7 @@ import {
   useAvailableIpos,
   useReapply,
 } from '#/app/ipo/api/ipo.queries'
+import { useAccounts } from '#/app/accounts/api/accounts.queries'
 import { ErrorMessage, EmptyState } from '#/shared/components/ErrorMessage'
 import { Badge } from '#/components/ui/badge'
 import {
@@ -30,7 +31,6 @@ import {
   ShieldAlert,
   XCircle,
   Clock,
-  ChevronLeft,
   Info,
   Landmark,
   ChevronsUpDown,
@@ -65,12 +65,14 @@ const statusUiMap: Record<
     borderClass: string
     textClass: string
     bgClass: string
+    solidBgClass: string
   }
 > = {
   applied: {
     label: 'Verified',
     color: 'text-green-500',
     bgClass: 'bg-green-500/10',
+    solidBgClass: 'bg-green-500',
     borderClass: 'border-green-500/30',
     textClass: 'text-green-500',
     icon: <ShieldCheck className="h-8 w-8 text-green-500" />,
@@ -79,6 +81,7 @@ const statusUiMap: Record<
     label: 'Unverified',
     color: 'text-blue-400',
     bgClass: 'bg-blue-400/10',
+    solidBgClass: 'bg-blue-400',
     borderClass: 'border-blue-400/30',
     textClass: 'text-blue-400',
     icon: <Clock className="h-8 w-8 text-blue-400" />,
@@ -87,6 +90,7 @@ const statusUiMap: Record<
     label: 'Allotted',
     color: 'text-emerald-500',
     bgClass: 'bg-emerald-500/10',
+    solidBgClass: 'bg-emerald-500',
     borderClass: 'border-emerald-500/30',
     textClass: 'text-emerald-500',
     icon: <ShieldCheck className="h-8 w-8 text-emerald-500" />,
@@ -95,6 +99,7 @@ const statusUiMap: Record<
     label: 'Not Allotted',
     color: 'text-gray-400',
     bgClass: 'bg-gray-400/10',
+    solidBgClass: 'bg-gray-500',
     borderClass: 'border-gray-400/30',
     textClass: 'text-gray-400',
     icon: <ShieldAlert className="h-8 w-8 text-gray-400" />,
@@ -103,6 +108,7 @@ const statusUiMap: Record<
     label: 'Rejected',
     color: 'text-red-500',
     bgClass: 'bg-red-500/10',
+    solidBgClass: 'bg-red-500',
     borderClass: 'border-red-500/30',
     textClass: 'text-red-500',
     icon: <XCircle className="h-8 w-8 text-red-500" />,
@@ -111,6 +117,7 @@ const statusUiMap: Record<
     label: 'Not Applied',
     color: 'text-orange-500',
     bgClass: 'bg-orange-500/10',
+    solidBgClass: 'bg-orange-500',
     borderClass: 'border-orange-500/30',
     textClass: 'text-orange-500',
     icon: <Info className="h-8 w-8 text-orange-500" />,
@@ -132,6 +139,9 @@ function IpoStatusContent() {
   const [selectedIpoId, setSelectedIpoId] = useState<string>('')
   const [openCombobox, setOpenCombobox] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+
+  const { data: accountsResponse } = useAccounts(1, 100)
+  const allAccounts = accountsResponse?.data || []
 
   const {
     data: appliedIpos,
@@ -315,12 +325,40 @@ function IpoStatusContent() {
       ) : isLoadingIpos ? (
         <div className="space-y-4 pt-6 border-t border-border/50">
           <div className="space-y-4 mt-6">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="h-28 rounded-2xl bg-white/5 animate-pulse border border-white/5"
-              />
-            ))}
+            {(allAccounts.length > 0 ? allAccounts : [1, 2, 3]).map(
+              (item, idx) => {
+                const isAccount = typeof item !== 'number'
+                const account = isAccount ? item : null
+                const displayName = account
+                  ? account.name && account.name.trim() !== ''
+                    ? account.name
+                    : account.username
+                  : ''
+
+                return (
+                  <div
+                    key={typeof item === 'number' ? item : item.id}
+                    className="p-4 rounded-2xl border bg-[#111111] transition-all duration-300 flex justify-between items-stretch gap-4 border-white/5"
+                  >
+                    <div className="flex gap-4 items-start flex-1">
+                      <div className="p-3 rounded-xl flex-shrink-0 flex items-center justify-center bg-white/5 w-14 h-14 animate-pulse">
+                        <Loader2 className="h-6 w-6 text-muted-foreground/50 animate-spin" />
+                      </div>
+                      <div className="space-y-2 pt-1 w-full max-w-xs">
+                        {isAccount ? (
+                          <div className="font-medium text-muted-foreground">
+                            {idx + 1}. {displayName}
+                          </div>
+                        ) : (
+                          <div className="h-5 bg-white/5 rounded w-32 animate-pulse mt-0.5" />
+                        )}
+                        <div className="flex items-center gap-2 h-4 bg-white/5 rounded w-24 animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                )
+              },
+            )}
           </div>
         </div>
       ) : !appliedIpos || appliedIpos.length === 0 ? (
@@ -342,51 +380,113 @@ function IpoStatusContent() {
                 /{statusData?.length ?? 0})
               </span>
             </div>
-            {activeFilter && (
-              <button
-                onClick={() => setActiveFilter(null)}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                clear
-              </button>
-            )}
           </div>
 
           {/* Dynamic Filters matching the mockup pills */}
           <div className="flex flex-wrap gap-3 pb-2">
-            {Object.entries(filterCounts).map(([label, count]) => {
-              // Find the UI map entry for this label to get its color
-              const uiMap = Object.values(statusUiMap).find(
-                (m) => m.label === label,
-              )
-              const isActive = activeFilter === label
-
-              return (
+            {isLoadingStatus ? (
+              <>
+                <div className="h-8 w-16 bg-white/5 rounded-full animate-pulse border border-white/5" />
+                <div className="h-8 w-24 bg-white/5 rounded-full animate-pulse border border-white/5" />
+                <div className="h-8 w-20 bg-white/5 rounded-full animate-pulse border border-white/5" />
+                <div className="h-8 w-28 bg-white/5 rounded-full animate-pulse border border-white/5" />
+              </>
+            ) : (
+              <>
                 <button
-                  key={label}
-                  onClick={() => setActiveFilter(isActive ? null : label)}
+                  onClick={() => setActiveFilter(null)}
                   className={cn(
                     'px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border',
-                    isActive
-                      ? cn(uiMap?.bgClass, uiMap?.borderClass, uiMap?.textClass)
-                      : 'border-border/40 text-muted-foreground hover:border-border/80',
+                    activeFilter === null
+                      ? 'bg-foreground text-background border-transparent shadow-md'
+                      : 'bg-muted/50 border-border/40 text-muted-foreground hover:bg-muted/80',
                   )}
-                  style={isActive && uiMap ? {} : {}}
                 >
-                  {label} ({count})
+                  All ({statusData?.length ?? 0})
                 </button>
-              )
-            })}
+                {Object.entries(filterCounts).map(([label, count]) => {
+                  // Find the UI map entry for this label to get its color
+                  const uiMap = Object.values(statusUiMap).find(
+                    (m) =>
+                      m.label === label ||
+                      (label === 'Connection Error' && m.label === 'Rejected'),
+                  )
+
+                  const isConnectionError = label === 'Connection Error'
+                  const displayMap = isConnectionError
+                    ? {
+                        solidBgClass: 'bg-orange-500',
+                        bgClass: 'bg-orange-500/10',
+                        borderClass: 'border-orange-500/30',
+                        textClass: 'text-orange-500',
+                      }
+                    : uiMap
+
+                  const isActive = activeFilter === label
+
+                  return (
+                    <button
+                      key={label}
+                      onClick={() => setActiveFilter(isActive ? null : label)}
+                      className={cn(
+                        'px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border',
+                        isActive
+                          ? cn(
+                              displayMap?.solidBgClass,
+                              'text-white border-transparent shadow-md',
+                            )
+                          : cn(
+                              displayMap?.bgClass,
+                              displayMap?.borderClass,
+                              displayMap?.textClass,
+                              'hover:opacity-80',
+                            ),
+                      )}
+                    >
+                      {label} ({count})
+                    </button>
+                  )
+                })}
+              </>
+            )}
           </div>
 
           {isLoadingStatus ? (
             <div className="space-y-4 mt-6">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-28 rounded-2xl bg-white/5 animate-pulse border border-white/5"
-                />
-              ))}
+              {(allAccounts.length > 0 ? allAccounts : [1, 2, 3]).map(
+                (item, idx) => {
+                  const isAccount = typeof item !== 'number'
+                  const account = isAccount ? item : null
+                  const displayName = account
+                    ? account.name && account.name.trim() !== ''
+                      ? account.name
+                      : account.username
+                    : ''
+
+                  return (
+                    <div
+                      key={typeof item === 'number' ? item : item.id}
+                      className="p-4 rounded-2xl border bg-[#111111] transition-all duration-300 flex justify-between items-stretch gap-4 border-white/5"
+                    >
+                      <div className="flex gap-4 items-start flex-1">
+                        <div className="p-3 rounded-xl flex-shrink-0 flex items-center justify-center bg-white/5 w-14 h-14 animate-pulse">
+                          <Loader2 className="h-6 w-6 text-muted-foreground/50 animate-spin" />
+                        </div>
+                        <div className="space-y-2 pt-1 w-full max-w-xs">
+                          {isAccount ? (
+                            <div className="font-medium text-muted-foreground">
+                              {idx + 1}. {displayName}
+                            </div>
+                          ) : (
+                            <div className="h-8 bg-white/5 rounded w-32 animate-pulse mt-0.5" />
+                          )}
+                          <div className="flex items-center gap-2 h-4 bg-white/5 rounded w-24 animate-pulse" />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                },
+              )}
             </div>
           ) : filteredData.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground border border-dashed border-border/50 rounded-2xl">
@@ -406,6 +506,7 @@ function IpoStatusContent() {
                     textClass: 'text-orange-500',
                     bgClass: 'bg-orange-500/10',
                     borderClass: 'border-orange-500/30',
+                    solidBgClass: 'bg-orange-500',
                   }
                 }
                 const displayName =

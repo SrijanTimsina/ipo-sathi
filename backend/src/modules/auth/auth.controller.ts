@@ -9,14 +9,6 @@ const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-const REFRESH_COOKIE_NAME = "refresh_token";
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: config.server.nodeEnv === "production",
-  sameSite: "lax" as const,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
-};
 
 export const authController = {
   async login(req: Request, res: Response): Promise<void> {
@@ -28,20 +20,18 @@ export const authController = {
 
     const result = await authService.login(parsed.data.mobileNumber, parsed.data.password);
 
-    // Set refresh token as HTTP-only cookie
-    res.cookie(REFRESH_COOKIE_NAME, result.refreshToken, COOKIE_OPTIONS);
-
     sendSuccess(res, {
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       user: result.user,
     });
   },
 
   async refresh(req: Request, res: Response): Promise<void> {
-    const refreshToken = req.cookies[REFRESH_COOKIE_NAME] as string | undefined;
+    const refreshToken = req.body.refreshToken;
 
     if (!refreshToken) {
-      sendError(res, 401, "NO_REFRESH_TOKEN", "Refresh token cookie is missing");
+      sendError(res, 401, "NO_REFRESH_TOKEN", "Refresh token is missing");
       return;
     }
 
@@ -50,11 +40,6 @@ export const authController = {
   },
 
   async logout(_req: Request, res: Response): Promise<void> {
-    res.clearCookie(REFRESH_COOKIE_NAME, {
-      httpOnly: true,
-      secure: config.server.nodeEnv === "production",
-      sameSite: "lax",
-    });
     sendSuccess(res, { message: "Logged out successfully" });
   },
 };
