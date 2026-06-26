@@ -11,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
-import { KeyRound, LogOut, User } from 'lucide-react'
+import { KeyRound, LogOut, User, Users } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 interface AppLayoutProps {
@@ -99,6 +99,17 @@ export function AppLayout({ children }: AppLayoutProps) {
                       </div>
                     </div>
                     <DropdownMenuSeparator />
+                    {user.role === 'admin' && (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          to="/admin/users"
+                          className="w-full cursor-pointer flex items-center"
+                        >
+                          <Users className="mr-2 h-4 w-4" />
+                          <span>Manage Users</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link
                         to="/settings"
@@ -123,7 +134,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           <main className="flex-1 p-6 pb-24 md:pb-6">{children}</main>
           
           {/* Mobile Bottom Navigation */}
-          <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background z-50 px-2 pb-safe">
+          <div className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background z-50 px-2 pb-safe pb-4">
             <div className="flex justify-around items-center h-16">
               {userNavItems.map((item) => {
                 const pathname = router.state.location.pathname
