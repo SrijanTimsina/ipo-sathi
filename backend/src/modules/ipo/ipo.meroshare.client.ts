@@ -277,10 +277,10 @@ export class MeroShareClient {
    * Authenticate with MeroShare and return the Bearer token.
    * The token is returned in the Authorization response header.
    */
-  async authenticate(account: DecryptedAccount): Promise<string> {
+  async authenticate(account: DecryptedAccount, force: boolean = false): Promise<string> {
     this.currentAccount = account;
     
-    if (account.id) {
+    if (account.id && !force) {
       const cached = authCache.get(account.id);
       if (cached && cached.expiresAt > Date.now()) {
         return cached.token;

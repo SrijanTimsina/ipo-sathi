@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
 import { ProtectedRoute } from '#/shared/components/ProtectedRoute'
+import { useAuth } from '#/shared/hooks/useAuth'
 import { AppLayout } from '#/shared/components/AppLayout'
 import { useCreateAccount, useFetchMeroshareBanks } from '#/app/accounts/api/accounts.queries'
 import { Button } from '#/components/ui/button'
@@ -12,9 +13,6 @@ import { Input } from '#/components/ui/input'
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from '#/components/ui/card'
 import {
   Form,
@@ -79,6 +77,7 @@ function NewAccountPage() {
 
 function NewAccountContent() {
   const router = useRouter()
+  const { isAuthenticated } = useAuth()
   const createAccount = useCreateAccount()
   const fetchBanks = useFetchMeroshareBanks()
   const { data: capitals } = useCapitals()
@@ -125,6 +124,7 @@ function NewAccountContent() {
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.error?.message ||
+        error?.message ||
         'Failed to authenticate with MeroShare. Please check your details.'
       toast.error(errorMessage)
     }
@@ -138,6 +138,7 @@ function NewAccountContent() {
     } catch (error: any) {
       const errorMessage =
         error?.response?.data?.error?.message ||
+        error?.message ||
         'Failed to add account. Please check your details.'
       toast.error(errorMessage)
     }
@@ -376,51 +377,53 @@ function NewAccountContent() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={formStep2.control}
-                    name="autoApply"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">Auto Apply</FormLabel>
-                          <FormDescription>
-                            Automatically apply for new IPOs when they open.
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={formStep2.control}
-                    name="autoReApply"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                        <div className="space-y-0.5">
-                          <FormLabel className="text-base">
-                            Auto Re-Apply
-                          </FormLabel>
-                          <FormDescription>
-                            Automatically re-apply if the IPO application is
-                            rejected.
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                {isAuthenticated && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={formStep2.control}
+                      name="autoApply"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">Auto Apply</FormLabel>
+                            <FormDescription>
+                              Automatically apply for new IPOs when they open.
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={formStep2.control}
+                      name="autoReApply"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Auto Re-Apply
+                            </FormLabel>
+                            <FormDescription>
+                              Automatically re-apply if the IPO application is
+                              rejected.
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
                 <div className="flex gap-3 pt-2">
                   <Button
                     type="button"

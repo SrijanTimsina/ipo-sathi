@@ -26,6 +26,21 @@ export const accountsRepo = {
     return result[0];
   },
 
+  async findDuplicate(userId: string, clientId: string, username: string): Promise<SelectBrokerAccount | undefined> {
+    const result = await db
+      .select()
+      .from(brokerAccounts)
+      .where(
+        and(
+          eq(brokerAccounts.userId, userId),
+          eq(brokerAccounts.clientId, clientId),
+          eq(brokerAccounts.username, username)
+        )
+      )
+      .limit(1);
+    return result[0];
+  },
+
   async findAllByUserId(
     userId: string,
     { page, limit }: PaginationParams

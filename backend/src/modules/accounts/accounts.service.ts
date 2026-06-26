@@ -112,6 +112,11 @@ export const accountsService = {
     userId: string,
     input: CreateAccountInput,
   ): Promise<DecryptedAccount> {
+    const existing = await accountsRepo.findDuplicate(userId, input.clientId, input.username);
+    if (existing) {
+      throw new AppError(400, "DUPLICATE_ACCOUNT", "This account is already added.");
+    }
+
     // Verify credentials with MeroShare before saving
     const client = new MeroShareClient();
     let token = "";
@@ -192,6 +197,14 @@ export const accountsService = {
 
     const updatedClientId = input.clientId ?? account.clientId;
     const updatedUsername = input.username ?? account.username;
+
+    if (updatedClientId !== account.clientId || updatedUsername !== account.username) {
+      const existing = await accountsRepo.findDuplicate(userId, updatedClientId, updatedUsername);
+      if (existing) {
+        throw new AppError(400, "DUPLICATE_ACCOUNT", "Another account with these credentials already exists.");
+      }
+    }
+
     const updatedPassword =
       input.password ?? decrypt(account.passwordEncrypted);
 
@@ -219,7 +232,7 @@ export const accountsService = {
           demat: account.demat,
           clientCode: account.clientCode,
           bankId: account.bankId,
-        });
+        }, true);
       } catch (error: any) {
         throw new AppError(
           400,

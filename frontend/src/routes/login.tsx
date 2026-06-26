@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from '#/components/ui/form'
 import { useAuth } from '#/shared/hooks/useAuth'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Info } from 'lucide-react'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -144,6 +144,41 @@ function LoginPage() {
             </Form>
           </CardContent>
         </Card>
+
+        <div className="relative my-4">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">Or</span>
+          </div>
+        </div>
+
+        <div className="p-5 bg-muted/30 border border-border/50 rounded-lg flex flex-col gap-4 mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void router.navigate({ to: '/dashboard' })}
+          >
+            Continue without Sign In
+          </Button>
+
+          <div className="text-sm text-muted-foreground flex gap-3 items-start">
+            <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p>
+                All account information and MeroShare requests are made securely
+                through your browser. The developer does not have access to any
+                account information.
+              </p>
+              <p>
+                <strong>Note:</strong> Auto-apply, auto result check, and
+                WhatsApp messages are not available in this version.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="text-center space-y-2 mt-8">
           <p className="text-lg text-muted-foreground">

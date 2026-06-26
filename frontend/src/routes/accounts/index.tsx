@@ -7,10 +7,12 @@ import {
   useDeleteAccount,
   useUpdateAccount,
 } from '#/app/accounts/api/accounts.queries'
+import { useAuth } from '#/shared/hooks/useAuth'
 import { TableSkeleton } from '#/shared/components/LoadingSkeleton'
 import { ErrorMessage, EmptyState } from '#/shared/components/ErrorMessage'
 import { Button } from '#/components/ui/button'
 import { Switch } from '#/components/ui/switch'
+import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import {
   Table,
@@ -37,8 +39,7 @@ import {
   DropdownMenuTrigger,
 } from '#/components/ui/dropdown-menu'
 import { toast } from 'sonner'
-import { Plus, Pencil, Trash2, Wallet, Download, MoreVertical, Zap, RefreshCw } from 'lucide-react'
-import { cn } from '#/lib/utils'
+import { Plus, Pencil, Trash2, Wallet, Download, MoreVertical } from 'lucide-react'
 import type { BrokerAccount } from '#/shared/types/api'
 import {
   useReactTable,
@@ -67,6 +68,7 @@ function AccountsContent() {
 
   const { data, isLoading, isError, refetch } = useAccounts(page)
   const deleteAccount = useDeleteAccount()
+  const { isAuthenticated } = useAuth()
 
   const updateAccountMutation = useUpdateAccount({
     onSuccess: () => toast.success('Account preferences updated'),
@@ -136,47 +138,51 @@ function AccountsContent() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Preferences</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
-                <span>Active</span>
-                <Switch
-                  checked={info.row.original.isActive}
-                  onCheckedChange={(checked) =>
-                    updateAccountMutation.mutate({
-                      id: info.row.original.id,
-                      payload: { isActive: checked },
-                    })
-                  }
-                  disabled={updateAccountMutation.isPending}
-                />
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
-                <span>Auto Apply</span>
-                <Switch
-                  checked={info.row.original.autoApply}
-                  onCheckedChange={(checked) =>
-                    updateAccountMutation.mutate({
-                      id: info.row.original.id,
-                      payload: { autoApply: checked },
-                    })
-                  }
-                  disabled={updateAccountMutation.isPending}
-                />
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
-                <span>Auto ReApply</span>
-                <Switch
-                  checked={info.row.original.autoReApply}
-                  onCheckedChange={(checked) =>
-                    updateAccountMutation.mutate({
-                      id: info.row.original.id,
-                      payload: { autoReApply: checked },
-                    })
-                  }
-                  disabled={updateAccountMutation.isPending}
-                />
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
+              {isAuthenticated && (
+                <>
+                  <DropdownMenuLabel>Preferences</DropdownMenuLabel>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+                    <span>Active</span>
+                    <Switch
+                      checked={info.row.original.isActive}
+                      onCheckedChange={(checked) =>
+                        updateAccountMutation.mutate({
+                          id: info.row.original.id,
+                          payload: { isActive: checked },
+                        })
+                      }
+                      disabled={updateAccountMutation.isPending}
+                    />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+                    <span>Auto Apply</span>
+                    <Switch
+                      checked={info.row.original.autoApply}
+                      onCheckedChange={(checked) =>
+                        updateAccountMutation.mutate({
+                          id: info.row.original.id,
+                          payload: { autoApply: checked },
+                        })
+                      }
+                      disabled={updateAccountMutation.isPending}
+                    />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+                    <span>Auto ReApply</span>
+                    <Switch
+                      checked={info.row.original.autoReApply}
+                      onCheckedChange={(checked) =>
+                        updateAccountMutation.mutate({
+                          id: info.row.original.id,
+                          payload: { autoReApply: checked },
+                        })
+                      }
+                      disabled={updateAccountMutation.isPending}
+                    />
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
               <DropdownMenuItem asChild>
                 <Link to="/accounts/$id" params={{ id: info.row.original.id }} className="cursor-pointer">
                   <Pencil className="h-4 w-4 mr-2" /> Edit Account
@@ -352,47 +358,51 @@ function AccountsContent() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuLabel>Preferences</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
-                              <span>Active</span>
-                              <Switch
-                                checked={row.original.isActive}
-                                onCheckedChange={(checked) =>
-                                  updateAccountMutation.mutate({
-                                    id: row.original.id,
-                                    payload: { isActive: checked },
-                                  })
-                                }
-                                disabled={updateAccountMutation.isPending}
-                              />
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
-                              <span>Auto Apply</span>
-                              <Switch
-                                checked={row.original.autoApply}
-                                onCheckedChange={(checked) =>
-                                  updateAccountMutation.mutate({
-                                    id: row.original.id,
-                                    payload: { autoApply: checked },
-                                  })
-                                }
-                                disabled={updateAccountMutation.isPending}
-                              />
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
-                              <span>Auto ReApply</span>
-                              <Switch
-                                checked={row.original.autoReApply}
-                                onCheckedChange={(checked) =>
-                                  updateAccountMutation.mutate({
-                                    id: row.original.id,
-                                    payload: { autoReApply: checked },
-                                  })
-                                }
-                                disabled={updateAccountMutation.isPending}
-                              />
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
+                            {isAuthenticated && (
+                              <>
+                                <DropdownMenuLabel>Preferences</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+                                  <span>Active</span>
+                                  <Switch
+                                    checked={row.original.isActive}
+                                    onCheckedChange={(checked) =>
+                                      updateAccountMutation.mutate({
+                                        id: row.original.id,
+                                        payload: { isActive: checked },
+                                      })
+                                    }
+                                    disabled={updateAccountMutation.isPending}
+                                  />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+                                  <span>Auto Apply</span>
+                                  <Switch
+                                    checked={row.original.autoApply}
+                                    onCheckedChange={(checked) =>
+                                      updateAccountMutation.mutate({
+                                        id: row.original.id,
+                                        payload: { autoApply: checked },
+                                      })
+                                    }
+                                    disabled={updateAccountMutation.isPending}
+                                  />
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="flex items-center justify-between">
+                                  <span>Auto ReApply</span>
+                                  <Switch
+                                    checked={row.original.autoReApply}
+                                    onCheckedChange={(checked) =>
+                                      updateAccountMutation.mutate({
+                                        id: row.original.id,
+                                        payload: { autoReApply: checked },
+                                      })
+                                    }
+                                    disabled={updateAccountMutation.isPending}
+                                  />
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                              </>
+                            )}
                             <DropdownMenuItem asChild>
                               <Link to="/accounts/$id" params={{ id: row.original.id }} className="cursor-pointer">
                                 <Pencil className="h-4 w-4 mr-2" /> Edit Account
@@ -505,27 +515,32 @@ function AccountsContent() {
     </div>
   )
 }
+
 function AccountStatusBadges({ account }: { account: BrokerAccount }) {
+  const { isAuthenticated } = useAuth()
+
+  if (!isAuthenticated) return null
+
   return (
-    <div className="flex items-center gap-1.5 ml-1">
-      <div
-        className={cn(
-          'w-2 h-2 rounded-full',
-          account.isActive
-            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
-            : 'bg-neutral-300',
-        )}
-        title={account.isActive ? 'Active' : 'Inactive'}
-      />
+    <div className="flex flex-wrap gap-2">
+      {account.isActive ? (
+        <Badge variant="default" className="bg-green-500/10 text-green-500">
+          Active
+        </Badge>
+      ) : (
+        <Badge variant="secondary" className="bg-zinc-500/10 text-zinc-500">
+          Inactive
+        </Badge>
+      )}
       {account.autoApply && (
-        <span title="Auto Apply Enabled">
-          <Zap className="w-3.5 h-3.5 text-blue-500 fill-blue-500/20" />
-        </span>
+        <Badge variant="secondary" className="bg-blue-500/10 text-blue-500">
+          Auto Apply
+        </Badge>
       )}
       {account.autoReApply && (
-        <span title="Auto Re-Apply Enabled">
-          <RefreshCw className="w-3.5 h-3.5 text-emerald-500" />
-        </span>
+        <Badge variant="secondary" className="bg-purple-500/10 text-purple-500">
+          Auto ReApply
+        </Badge>
       )}
     </div>
   )

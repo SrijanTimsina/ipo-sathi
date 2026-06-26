@@ -14,7 +14,7 @@ import {
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
-import { Wallet, TrendingUp, ArrowRight, Calendar } from 'lucide-react'
+import { Wallet, TrendingUp, ArrowRight, Calendar, Info } from 'lucide-react'
 
 const getShareTypeColor = (type: string) => {
   switch (type.toUpperCase()) {
@@ -68,6 +68,30 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      {!user && (
+        <Card className="bg-muted/30 border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-primary flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              Browser Mode Active
+            </CardTitle>
+            <CardDescription>
+              Without logging in, automated features like auto-apply, auto result check, and WhatsApp messages are unavailable.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm mb-4 text-muted-foreground">
+              If you have an account, sign in to enable full automation and cloud sync.
+            </p>
+            <Button asChild variant="default" size="sm">
+              <Link to="/login">
+                Log in to Sync
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <StatCard

@@ -24,10 +24,10 @@ import {
   Users,
   LogOut,
   Shield,
-  Settings,
+  KeyRound,
 } from 'lucide-react'
 
-const userNavItems = [
+export const userNavItems = [
   { title: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { title: 'Accounts', icon: Wallet, href: '/accounts' },
   { title: 'Portfolio', icon: Briefcase, href: '/portfolio' },
@@ -143,32 +143,41 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border px-4 py-3">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">
-              {user?.role}
-            </p>
-          </div>
-        </div>
-
-        <Link to="/settings" className="w-full">
-          <Button size="sm" className="w-full" variant={'outline'}>
-            <Settings className="h-4 w-4 mr-2" />
-            Change Password
-          </Button>
-        </Link>
-        <Button
-          size="sm"
-          className="w-full"
-          onClick={() => void handleLogout()}
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Sign Out
-        </Button>
+        {user ? (
+          <>
+            <div className="flex items-center gap-3 mb-3">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {user.role}
+                </p>
+              </div>
+            </div>
+            <Link to="/settings" className="w-full">
+              <Button size="sm" className="w-full" variant={'outline'}>
+                <KeyRound className="h-4 w-4 mr-2" />
+                Change Password
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              className="w-full mt-2"
+              onClick={() => void handleLogout()}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </>
+        ) : (
+          <Link to="/login" className="w-full">
+            <Button size="sm" className="w-full">
+              Sign In
+            </Button>
+          </Link>
+        )}
       </SidebarFooter>
     </Sidebar>
   )

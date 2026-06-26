@@ -24,7 +24,7 @@ export const config = {
     accessSecret: requireEnv("JWT_ACCESS_SECRET"),
     refreshSecret: requireEnv("JWT_REFRESH_SECRET"),
     accessExpiresIn: optionalEnv("JWT_ACCESS_EXPIRES_IN", "15m"),
-    refreshExpiresIn: optionalEnv("JWT_REFRESH_EXPIRES_IN", "7d"),
+    refreshExpiresIn: optionalEnv("JWT_REFRESH_EXPIRES_IN", "30d"),
   },
   encryption: {
     key: requireEnv("ENCRYPTION_KEY"),

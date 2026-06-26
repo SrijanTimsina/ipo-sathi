@@ -1,4 +1,3 @@
-import { Navigate } from "@tanstack/react-router";
 import { useAuth } from "../hooks/useAuth.js";
 import { Skeleton } from "#/components/ui/skeleton";
 import type { ReactNode } from "react";
@@ -8,7 +7,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -18,9 +17,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
+  // In Dual-Mode architecture, unauthenticated users are in "Browser Mode"
+  // They have access to the app, but data is loaded from/saved to localStorage.
   return <>{children}</>;
 }

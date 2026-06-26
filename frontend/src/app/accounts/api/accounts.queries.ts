@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { accountsRequests } from './accounts.requests'
+import { localAccountsRequests } from './accounts.local.requests'
+import { useAuth } from '#/shared/hooks/useAuth'
 import type {
   CreateAccountPayload,
   UpdateAccountPayload,
@@ -13,9 +15,12 @@ export const accountsQueryKeys = {
 }
 
 export function useAccounts(page = 1, limit = 20) {
+  const { isAuthenticated } = useAuth()
+  const requests = isAuthenticated ? accountsRequests : localAccountsRequests
+  
   return useQuery({
     queryKey: accountsQueryKeys.list(page, limit),
-    queryFn: () => accountsRequests.list(page, limit),
+    queryFn: () => requests.list(page, limit),
     // Keep query fresh for the session as account detail doesnot change
     staleTime: Infinity,
     gcTime: Infinity,
@@ -23,18 +28,24 @@ export function useAccounts(page = 1, limit = 20) {
 }
 
 export function useAccount(id: string) {
+  const { isAuthenticated } = useAuth()
+  const requests = isAuthenticated ? accountsRequests : localAccountsRequests
+  
   return useQuery({
     queryKey: accountsQueryKeys.detail(id),
-    queryFn: () => accountsRequests.getById(id),
+    queryFn: () => requests.getById(id),
     enabled: Boolean(id),
   })
 }
 
 export function useCreateAccount() {
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
+  const requests = isAuthenticated ? accountsRequests : localAccountsRequests
+
   return useMutation({
     mutationFn: (payload: CreateAccountPayload) =>
-      accountsRequests.create(payload),
+      requests.create(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all })
     },
@@ -46,9 +57,12 @@ export function useUpdateAccount(options?: {
   onError?: (error: Error) => void
 }) {
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
+  const requests = isAuthenticated ? accountsRequests : localAccountsRequests
+
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: UpdateAccountPayload }) =>
-      accountsRequests.update(id, payload),
+      requests.update(id, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all })
       options?.onSuccess?.()
@@ -61,8 +75,11 @@ export function useUpdateAccount(options?: {
 
 export function useDeleteAccount() {
   const queryClient = useQueryClient()
+  const { isAuthenticated } = useAuth()
+  const requests = isAuthenticated ? accountsRequests : localAccountsRequests
+
   return useMutation({
-    mutationFn: (id: string) => accountsRequests.delete(id),
+    mutationFn: (id: string) => requests.delete(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all })
     },
@@ -70,17 +87,23 @@ export function useDeleteAccount() {
 }
 
 export function useFetchMeroshareBanks() {
+  const { isAuthenticated } = useAuth()
+  const requests = isAuthenticated ? accountsRequests : localAccountsRequests
+
   return useMutation({
     mutationFn: (
       payload: Pick<CreateAccountPayload, 'clientId' | 'username' | 'password'>,
-    ) => accountsRequests.fetchMeroshareBanks(payload),
+    ) => requests.fetchMeroshareBanks(payload),
   })
 }
 
 export function useAccountBanks(accountId: string) {
+  const { isAuthenticated } = useAuth()
+  const requests = isAuthenticated ? accountsRequests : localAccountsRequests
+
   return useQuery({
     queryKey: ['accounts', 'banks', accountId],
-    queryFn: () => accountsRequests.fetchBanksForAccount(accountId),
+    queryFn: () => requests.fetchBanksForAccount(accountId),
     enabled: Boolean(accountId),
   })
 }
