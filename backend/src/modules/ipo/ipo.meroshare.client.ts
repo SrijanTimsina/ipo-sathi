@@ -376,6 +376,17 @@ export class MeroShareClient {
   }
 
   /**
+   * Get IPO detail by companyShareId.
+   */
+  async getIpoDetail(token: string, companyShareId: number): Promise<any> {
+    const response = await this.http.get(
+      `/meroShare/active/${companyShareId}`,
+      { headers: { Authorization: token } },
+    );
+    return response.data;
+  }
+
+  /**
    * Get bank details by bank code.
    */
   async getBankDetailByCode(

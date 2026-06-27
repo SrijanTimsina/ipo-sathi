@@ -35,6 +35,8 @@ export const ipoNotificationService = {
     isOpen?: boolean,
     isMorningCron?: boolean,
     isEveningCron?: boolean,
+    sharePerUnit?: number,
+    shareValue?: number,
   ) {
     const user = await usersRepo.findById(userId);
     if (!user || !user.mobileNumber) return; // Cannot notify without a phone number
@@ -143,6 +145,8 @@ export const ipoNotificationService = {
         isClosingWarning,
         isOpen,
         false, // isAllVerified
+        sharePerUnit,
+        shareValue,
       );
     }
   },
@@ -158,6 +162,8 @@ export const ipoNotificationService = {
     isClosingWarning: boolean = false,
     isOpen?: boolean,
     isAllVerified: boolean = false,
+    sharePerUnit?: number,
+    shareValue?: number,
   ) {
     const verified: string[] = [];
     const unverified: string[] = [];
@@ -192,6 +198,8 @@ export const ipoNotificationService = {
           app.errorMessage === "Did not apply via system"
         ) {
           skipped.push(`${app.accountName}: Not Applied ⏸️`);
+        } else if (app.errorMessage === "Skipped due to custom rules") {
+          skipped.push(`${app.accountName}: Skipped (Rule) ⏸️`);
         } else {
           let errorStr = `${app.accountName}: Rejected (${app.errorMessage}) ❌`;
           if (!isClosed && account && !account.autoReApply) {
@@ -251,6 +259,19 @@ export const ipoNotificationService = {
       unverified.forEach((u) => (message += `${u}\n`));
     }
 
+    // Add custom reminder if any account skipped due to custom rules
+    const hasSkippedDueToRules = liveApps.some(
+      (a) => a.errorMessage === "Skipped due to custom rules",
+    );
+    if (hasSkippedDueToRules) {
+      if (sharePerUnit && sharePerUnit > 200) {
+        message += `\n⚠️ *Premium IPO Alert: This share is issued at Rs. ${sharePerUnit} per unit. Auto-apply has been disabled to expensive premiums IPOs. Please apply manually via https://ipo-sathi.vercel.app/ if you wish to invest.*\n`;
+      } else if (shareValue && shareValue > 20000000) {
+        const numApplicants = Math.floor(shareValue / 10);
+        message += `\n⚠️ *High Volume IPO Alert: ${shareValue} shares are being issued, expected to be allotted to ${numApplicants}+ applicants. Consider applying for 20 or more kittas to improve allotment chances.*\n`;
+      }
+    }
+
     await whatsappService.sendMessage(
       this.formatNumber(mobileNumber),
       message.trim(),
@@ -280,6 +301,8 @@ export const ipoNotificationService = {
         app.errorMessage === "Did not apply via system"
       ) {
         message += `⚠️ *${app.accountName}*: Not Applied\n`;
+      } else if (app.errorMessage === "Skipped due to custom rules") {
+        message += `⚠️ *${app.accountName}*: Skipped (Rule)\n`;
       } else if (app.status === "error" || app.isRejected) {
         message += `⚠️ *${app.accountName}*: Rejected ${app.errorMessage ? `(${app.errorMessage})` : ""}\n`;
       } else {

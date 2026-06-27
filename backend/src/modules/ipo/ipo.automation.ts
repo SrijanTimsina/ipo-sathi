@@ -41,9 +41,18 @@ export async function runIpoAutomation(options?: {
   // 2. Fetch open IPOs using reference account
   const client = new MeroShareClient();
   let applicableIssues;
+  let issueDetails = new Map<number, any>();
   try {
     const token = await client.authenticate(decryptedRefAccount);
     applicableIssues = await client.getApplicableIpos(token);
+    for (const issue of applicableIssues) {
+      try {
+        const detail = await client.getIpoDetail(token, issue.companyShareId);
+        issueDetails.set(issue.companyShareId, detail);
+      } catch (err) {
+        console.error(`Failed to fetch detail for ${issue.companyShareId}`);
+      }
+    }
   } catch (error) {
     console.error(
       "Failed to authenticate reference account or fetch IPOs",
@@ -68,16 +77,21 @@ export async function runIpoAutomation(options?: {
       issueOpenDate: Date | null;
       issueCloseDate: Date | null;
       isOpen: boolean;
+      sharePerUnit?: number;
+      shareValue?: number;
     }
   >();
 
   for (const ipo of applicableIssues) {
+    const detail = issueDetails.get(ipo.companyShareId);
     iposToProcess.set(ipo.companyShareId, {
       companyShareId: ipo.companyShareId,
       companyName: ipo.companyName,
       issueOpenDate: ipo.issueOpenDate ? new Date(ipo.issueOpenDate) : null,
       issueCloseDate: ipo.issueCloseDate ? new Date(ipo.issueCloseDate) : null,
       isOpen: true,
+      sharePerUnit: detail?.sharePerUnit,
+      shareValue: detail?.shareValue,
     });
   }
 
@@ -170,16 +184,35 @@ export async function runIpoAutomation(options?: {
         if (!existingApp) {
           // Not applied yet.
           if (ipo.isOpen && account.autoApply) {
-            console.info(
-              `[Automation] Account ${account.username} - Applying for ${ipo.companyName}`,
-            );
-            await applyForAccount(account, {
-              companyShareId: ipo.companyShareId,
-              ipoName: ipo.companyName,
-              kittas: 10,
-            });
-            finalStatus = "pending";
-            successfulApplications++;
+            let skipAutoApply = false;
+            let skipReason = "";
+            
+            if (ipo.sharePerUnit && ipo.sharePerUnit > 200) {
+              skipAutoApply = true;
+              skipReason = `Premium price: ${ipo.sharePerUnit}`;
+            } else if (ipo.shareValue && ipo.shareValue > 20000000) {
+              skipAutoApply = true;
+              skipReason = `High issue volume`;
+            }
+
+            if (skipAutoApply) {
+              console.info(
+                `[Automation] Account ${account.username} - Skipped applying for ${ipo.companyName} due to custom rules (${skipReason})`,
+              );
+              finalStatus = "error";
+              errorMsg = "Skipped due to custom rules";
+            } else {
+              console.info(
+                `[Automation] Account ${account.username} - Applying for ${ipo.companyName}`,
+              );
+              await applyForAccount(account, {
+                companyShareId: ipo.companyShareId,
+                ipoName: ipo.companyName,
+                kittas: 10,
+              });
+              finalStatus = "pending";
+              successfulApplications++;
+            }
           } else {
             // either closed or autoApply disabled
             finalStatus = "error";
@@ -329,6 +362,8 @@ export async function runIpoAutomation(options?: {
           ipo.isOpen,
           isMorningCron,
           isEveningCron,
+          ipo.sharePerUnit,
+          ipo.shareValue,
         );
       }
     }
