@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { ProtectedRoute } from '#/shared/components/ProtectedRoute'
 import { AppLayout } from '#/shared/components/AppLayout'
@@ -136,12 +136,16 @@ function IpoResultsContent() {
     isError: isErrorStatus,
     isRefetching: isRefetchingStatus,
     refetch: refetchStatus,
-  } = useIpoStatus(undefined, selectedAccountId || undefined)
+  } = useIpoStatus(undefined, selectedAccountId || undefined, {
+    enabled: !!selectedAccountId,
+  })
 
   // Auto-select first account if available and nothing is selected
-  if (accounts.length > 0 && !selectedAccountId) {
-    setSelectedAccountId(accounts[0].id)
-  }
+  useEffect(() => {
+    if (accounts.length > 0 && !selectedAccountId) {
+      setSelectedAccountId(accounts[0].id)
+    }
+  }, [accounts, selectedAccountId])
 
   // Calculate filters
   const filterCounts = useMemo(() => {

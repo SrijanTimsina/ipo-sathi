@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ipoRequests } from "./ipo.requests";
 import { localIpoRequests } from "./ipo.local.requests";
+import { ipoCloudRequests } from "./ipo.cloud.requests";
 import { useAuth } from "#/shared/hooks/useAuth";
 import type { BulkApplyPayload } from "./ipo.requests";
 
@@ -14,7 +15,8 @@ export const ipoQueryKeys = {
 
 export function useAvailableIpos() {
   const { isAuthenticated } = useAuth();
-  const requests = isAuthenticated ? ipoRequests : localIpoRequests;
+  // Authenticated users go browser-direct to MeroShare; guests use local accounts.
+  const requests = isAuthenticated ? ipoCloudRequests : localIpoRequests;
 
   return useQuery({
     queryKey: ipoQueryKeys.available,
@@ -25,7 +27,7 @@ export function useAvailableIpos() {
 
 export function useIpoStatus(ipoId?: string, accountId?: string, options?: { enabled?: boolean }) {
   const { isAuthenticated } = useAuth();
-  const requests = isAuthenticated ? ipoRequests : localIpoRequests;
+  const requests = isAuthenticated ? ipoCloudRequests : localIpoRequests;
 
   return useQuery({
     queryKey: ipoQueryKeys.status(ipoId, accountId),
@@ -36,7 +38,7 @@ export function useIpoStatus(ipoId?: string, accountId?: string, options?: { ena
 
 export function useAllotmentResults() {
   const { isAuthenticated } = useAuth();
-  const requests = isAuthenticated ? ipoRequests : localIpoRequests;
+  const requests = isAuthenticated ? ipoCloudRequests : localIpoRequests;
 
   return useQuery({
     queryKey: ipoQueryKeys.results,
@@ -46,7 +48,7 @@ export function useAllotmentResults() {
 
 export function useCapitals() {
   const { isAuthenticated } = useAuth();
-  const requests = isAuthenticated ? ipoRequests : localIpoRequests;
+  const requests = isAuthenticated ? ipoCloudRequests : localIpoRequests;
 
   return useQuery({
     queryKey: ipoQueryKeys.capitals,
@@ -57,7 +59,7 @@ export function useCapitals() {
 
 export function useAppliedIpos() {
   const { isAuthenticated } = useAuth();
-  const requests = isAuthenticated ? ipoRequests : localIpoRequests;
+  const requests = isAuthenticated ? ipoCloudRequests : localIpoRequests;
 
   return useQuery({
     queryKey: ipoQueryKeys.applied,
@@ -69,7 +71,9 @@ export function useAppliedIpos() {
 export function useBulkApply() {
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
-  const requests = isAuthenticated ? ipoRequests : localIpoRequests;
+  // Apply always goes through the backend (for recording + notifications).
+  // ipoCloudRequests.bulkApply internally delegates to ipoRequests.bulkApply.
+  const requests = isAuthenticated ? ipoCloudRequests : localIpoRequests;
 
   return useMutation({
     mutationFn: (payload: BulkApplyPayload) => requests.bulkApply(payload),
@@ -83,7 +87,7 @@ export function useBulkApply() {
 export function useReapply() {
   const queryClient = useQueryClient();
   const { isAuthenticated } = useAuth();
-  const requests = isAuthenticated ? ipoRequests : localIpoRequests;
+  const requests = isAuthenticated ? ipoCloudRequests : localIpoRequests;
 
   return useMutation({
     mutationFn: (payload: { accountId: string; applicantFormId: number }) => requests.reapply(payload),
@@ -92,3 +96,7 @@ export function useReapply() {
     },
   });
 }
+
+// Keep a direct export of ipoRequests for any code that explicitly needs
+// the server-side cloud path (e.g. admin tools, backend-triggered flows).
+export { ipoRequests };

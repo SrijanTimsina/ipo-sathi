@@ -9,6 +9,10 @@ import {
   clearRefreshToken,
 } from '../lib/axios.js'
 import type { AuthUser, ApiSuccess } from '../types/api.js'
+import { queryClient } from '../../integrations/tanstack-query/root-provider.js'
+import { accountsStore } from '../../app/accounts/api/accounts.store.js'
+import { accountsRequests } from '../../app/accounts/api/accounts.requests.js'
+import { accountsQueryKeys } from '../../app/accounts/api/accounts.queries.js'
 
 interface LoginPayload {
   accessToken: string
@@ -42,6 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .get<ApiSuccess<AuthUser>>('/users/me')
       .then((res) => {
         setUser(res.data.data)
+        // Populate the in-memory accounts store so all subsequent MeroShare
+        // queries can run browser-direct without a backend round-trip.
+        return populateAccountsStore(res.data.data.id)
       })
       .catch(() => {
         clearAccessToken()
@@ -66,6 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(accessToken)
       setRefreshToken(refreshToken)
       setUser(authUser)
+      // Pre-load accounts into the store immediately after login.
+      await populateAccountsStore(authUser.id)
     },
     [],
   )
@@ -77,6 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAccessToken()
       clearRefreshToken()
       setUser(null)
+      // Clear cached accounts on logout.
+      accountsStore.clear()
+      queryClient.removeQueries({ queryKey: ['accounts'] })
     }
   }, [])
 
@@ -93,4 +105,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
+}
+
+/**
+ * Fetches all broker accounts and caches them in BOTH the TanStack Query
+ * cache and the in-memory `accountsStore`.
+ *
+ * Using `queryClient.fetchQuery` means:
+ * - The result is stored under the same key as `useAccounts(1, 100)` — so
+ *   any component using that hook will get an instant cache hit (no refetch).
+ * - Subsequent calls while the data is still fresh are deduplicated.
+ */
+async function populateAccountsStore(userId: string): Promise<void> {
+  try {
+    const data = await queryClient.fetchQuery({
+      queryKey: accountsQueryKeys.list(userId, 1, 100),
+      queryFn: () => accountsRequests.list(1, 100),
+      // staleTime: Infinity so repeat calls (e.g. session restore + login)
+      // never trigger a second network request within the same session.
+      staleTime: Infinity,
+    })
+    accountsStore.set(data.data)
+  } catch (e) {
+    console.error('[AuthContext] Failed to populate accounts store', e)
+  }
 }

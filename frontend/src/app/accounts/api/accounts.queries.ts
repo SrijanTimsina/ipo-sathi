@@ -1,38 +1,73 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { accountsRequests } from './accounts.requests'
 import { localAccountsRequests } from './accounts.local.requests'
+import { accountsStore } from './accounts.store'
 import { useAuth } from '#/shared/hooks/useAuth'
 import type {
   CreateAccountPayload,
   UpdateAccountPayload,
 } from './accounts.requests'
+import { queryClient } from '#/integrations/tanstack-query/root-provider'
+
+/**
+ * Re-fetches all accounts from the server into the TanStack Query cache,
+ * which also updates the in-memory store via the useAccounts side-effect.
+ * Using queryClient.fetchQuery means the result is cached and deduped.
+ */
+async function refreshStore(userId: string): Promise<void> {
+  try {
+    const data = await queryClient.fetchQuery({
+      queryKey: accountsQueryKeys.list(userId, 1, 100),
+      queryFn: () => accountsRequests.list(1, 100),
+      staleTime: 0, // Force refresh after a mutation
+    })
+    accountsStore.set(data.data)
+  } catch (e) {
+    console.error('[accounts.queries] Failed to refresh accounts store', e)
+  }
+}
 
 export const accountsQueryKeys = {
-  all: ['accounts'] as const,
-  list: (page: number, limit: number) =>
-    ['accounts', 'list', page, limit] as const,
-  detail: (id: string) => ['accounts', 'detail', id] as const,
+  all: (userId: string) => ['accounts', userId] as const,
+  list: (userId: string, page: number, limit: number) =>
+    ['accounts', userId, 'list', page, limit] as const,
+  detail: (userId: string, id: string) => ['accounts', userId, 'detail', id] as const,
 }
 
 export function useAccounts(page = 1, limit = 20) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const userId = user?.id || 'guest'
   const requests = isAuthenticated ? accountsRequests : localAccountsRequests
-  
-  return useQuery({
-    queryKey: accountsQueryKeys.list(page, limit),
+
+  const query = useQuery({
+    queryKey: accountsQueryKeys.list(userId, page, limit),
     queryFn: () => requests.list(page, limit),
-    // Keep query fresh for the session as account detail doesnot change
+    // Keep cached for the whole session — accounts don't change without
+    // an explicit mutation which will invalidate this key.
     staleTime: Infinity,
     gcTime: Infinity,
   })
+
+  // Keep the in-memory accountsStore in sync whenever accounts are fetched
+  // or returned from cache. This ensures browser-direct MeroShare requests
+  // always have fresh credentials without an extra network call.
+  useEffect(() => {
+    if (isAuthenticated && query.data) {
+      accountsStore.set(query.data.data)
+    }
+  }, [isAuthenticated, query.data])
+
+  return query
 }
 
 export function useAccount(id: string) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const userId = user?.id || 'guest'
   const requests = isAuthenticated ? accountsRequests : localAccountsRequests
   
   return useQuery({
-    queryKey: accountsQueryKeys.detail(id),
+    queryKey: accountsQueryKeys.detail(userId, id),
     queryFn: () => requests.getById(id),
     enabled: Boolean(id),
   })
@@ -40,14 +75,17 @@ export function useAccount(id: string) {
 
 export function useCreateAccount() {
   const queryClient = useQueryClient()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const userId = user?.id || 'guest'
   const requests = isAuthenticated ? accountsRequests : localAccountsRequests
 
   return useMutation({
     mutationFn: (payload: CreateAccountPayload) =>
       requests.create(payload),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all(userId) })
+      // Keep browser-direct MeroShare requests in sync.
+      if (isAuthenticated) void refreshStore(userId)
     },
   })
 }
@@ -57,14 +95,17 @@ export function useUpdateAccount(options?: {
   onError?: (error: Error) => void
 }) {
   const queryClient = useQueryClient()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const userId = user?.id || 'guest'
   const requests = isAuthenticated ? accountsRequests : localAccountsRequests
 
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: UpdateAccountPayload }) =>
       requests.update(id, payload),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all(userId) })
+      // Keep browser-direct MeroShare requests in sync.
+      if (isAuthenticated) void refreshStore(userId)
       options?.onSuccess?.()
     },
     onError: (error: Error) => {
@@ -75,13 +116,16 @@ export function useUpdateAccount(options?: {
 
 export function useDeleteAccount() {
   const queryClient = useQueryClient()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const userId = user?.id || 'guest'
   const requests = isAuthenticated ? accountsRequests : localAccountsRequests
 
   return useMutation({
     mutationFn: (id: string) => requests.delete(id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: accountsQueryKeys.all(userId) })
+      // Keep browser-direct MeroShare requests in sync.
+      if (isAuthenticated) void refreshStore(userId)
     },
   })
 }
@@ -98,11 +142,12 @@ export function useFetchMeroshareBanks() {
 }
 
 export function useAccountBanks(accountId: string) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const userId = user?.id || 'guest'
   const requests = isAuthenticated ? accountsRequests : localAccountsRequests
 
   return useQuery({
-    queryKey: ['accounts', 'banks', accountId],
+    queryKey: ['accounts', userId, 'banks', accountId],
     queryFn: () => requests.fetchBanksForAccount(accountId),
     enabled: Boolean(accountId),
   })

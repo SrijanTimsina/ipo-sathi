@@ -1,8 +1,10 @@
 import { QueryClient } from '@tanstack/react-query'
 
-export function getContext() {
-  const queryClient = new QueryClient()
+// Singleton instance — shared across the app so AuthContext and other
+// non-component code can write into the same cache that React components read.
+export const queryClient = new QueryClient()
 
+export function getContext() {
   return {
     queryClient,
   }
