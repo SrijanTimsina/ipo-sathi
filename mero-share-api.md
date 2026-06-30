@@ -154,6 +154,18 @@ Origin: https://meroshare.cdsc.com.np
       "action": "inProcess",
       "issueOpenDate": "Jun 11, 2026 9:00:00 AM",
       "issueCloseDate": "Jun 16, 2026 5:00:00 PM"
+    },
+
+    {
+      "companyShareId": 792,
+      "subGroup": "For General Public",
+      "scrip": "PDB2093",
+      "companyName": "6.25% Prime Bank Debenture 2093",
+      "shareTypeName": "IPO",
+      "shareGroupName": "Debentures",
+      "statusName": "CREATE_APPROVE",
+      "issueOpenDate": "Jun 30, 2026 9:00:00 AM",
+      "issueCloseDate": "Jul 3, 2026 5:00:00 PM"
     }
   ],
   "totalCount": 0

@@ -270,8 +270,12 @@ export class MeroShareBrowserClient {
     )
 
     const ipos = response.data.object ?? []
+
     return ipos.filter(
-      (ipo) => ipo.shareTypeName === 'IPO' || ipo.shareTypeName === 'FPO',
+      (ipo) =>
+        ipo.shareTypeName === 'IPO' &&
+        ipo.shareGroupName === 'Ordinary Shares' &&
+        ipo.subGroup === 'For General Public',
     )
   }
 

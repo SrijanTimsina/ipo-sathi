@@ -27,6 +27,7 @@ export interface MeroShareIpo {
   companyShareId: number;
   companyName: string;
   shareTypeName: string;
+  shareGroupName: string;
   issueManager: string;
   minUnit: number;
   maxUnit: number;
@@ -168,7 +169,7 @@ export class MeroShareClient {
 
     // Setup logging interceptors
     this.http.interceptors.request.use((config) => {
-      ;(config as any).metadata = { startTime: Date.now() }
+      (config as any).metadata = { startTime: Date.now() };
       try {
         const logDir = path.join(process.cwd(), "logs");
         if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
@@ -181,10 +182,12 @@ export class MeroShareClient {
 
     this.http.interceptors.response.use(
       (response) => {
-        const start = (response.config as any)?.metadata?.startTime
+        const start = (response.config as any)?.metadata?.startTime;
         if (start) {
-          const duration = Date.now() - start
-          console.log(`[Meroshare API] ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`)
+          const duration = Date.now() - start;
+          console.log(
+            `[Meroshare API] ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`,
+          );
         }
         try {
           const logDir = path.join(process.cwd(), "logs");
@@ -194,15 +197,17 @@ export class MeroShareClient {
         return response;
       },
       async (error) => {
-        const start = (error.config as any)?.metadata?.startTime
+        const start = (error.config as any)?.metadata?.startTime;
         if (start) {
-          const duration = Date.now() - start
-          console.log(`[Meroshare API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} took ${duration}ms`)
+          const duration = Date.now() - start;
+          console.log(
+            `[Meroshare API Error] ${error.config?.method?.toUpperCase()} ${error.config?.url} took ${duration}ms`,
+          );
         }
         try {
           const logDir = path.join(process.cwd(), "logs");
           if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-          
+
           const status = error.response?.status || "UNKNOWN";
           const data = error.response?.data || error.message;
           const url = error.config?.url || "UNKNOWN";
@@ -277,9 +282,12 @@ export class MeroShareClient {
    * Authenticate with MeroShare and return the Bearer token.
    * The token is returned in the Authorization response header.
    */
-  async authenticate(account: DecryptedAccount, force: boolean = false): Promise<string> {
+  async authenticate(
+    account: DecryptedAccount,
+    force: boolean = false,
+  ): Promise<string> {
     this.currentAccount = account;
-    
+
     if (account.id && !force) {
       const cached = authCache.get(account.id);
       if (cached && cached.expiresAt > Date.now()) {
@@ -301,7 +309,7 @@ export class MeroShareClient {
         `Authentication failed for account ${account.username}: no token in response`,
       );
     }
-    
+
     if (account.id) {
       authCache.set(account.id, {
         token,
@@ -371,7 +379,10 @@ export class MeroShareClient {
 
     const ipos = response.data.object ?? [];
     return ipos.filter(
-      (ipo) => ipo.shareTypeName === "IPO" || ipo.shareTypeName === "FPO",
+      (ipo) =>
+        ipo.shareTypeName === "IPO" &&
+        ipo.shareGroupName === "Ordinary Shares" &&
+        ipo.subGroup === "For General Public",
     );
   }
 

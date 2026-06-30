@@ -1,6 +1,6 @@
 import { accountsService } from "../accounts/accounts.service.js";
 import { accountsRepo } from "../accounts/accounts.repo.js";
-import { MeroShareClient } from "./ipo.meroshare.client.js";
+import { MeroShareClient, MeroShareIpo } from "./ipo.meroshare.client.js";
 import { applyForAccount, reapplyForAccount } from "./ipo.service.js";
 import { ipoRepo } from "./ipo.repo.js";
 import {
@@ -40,11 +40,17 @@ export async function runIpoAutomation(options?: {
 
   // 2. Fetch open IPOs using reference account
   const client = new MeroShareClient();
-  let applicableIssues;
+  let applicableIssues: MeroShareIpo[] = [];
   let issueDetails = new Map<number, any>();
   try {
     const token = await client.authenticate(decryptedRefAccount);
-    applicableIssues = await client.getApplicableIpos(token);
+    const allIpos = await client.getApplicableIpos(token);
+    applicableIssues = allIpos.filter(
+      (ipo) =>
+        ipo.shareTypeName === "IPO" &&
+        ipo.shareGroupName === "Ordinary Shares" &&
+        ipo.subGroup === "For General Public",
+    );
     for (const issue of applicableIssues) {
       try {
         const detail = await client.getIpoDetail(token, issue.companyShareId);
@@ -186,7 +192,7 @@ export async function runIpoAutomation(options?: {
           if (ipo.isOpen && account.autoApply) {
             let skipAutoApply = false;
             let skipReason = "";
-            
+
             if (ipo.sharePerUnit && ipo.sharePerUnit > 200) {
               skipAutoApply = true;
               skipReason = `Premium price: ${ipo.sharePerUnit}`;
