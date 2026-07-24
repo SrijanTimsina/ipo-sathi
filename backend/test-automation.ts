@@ -15,7 +15,7 @@ async function testAutomation() {
   console.log(`======================================================\n`);
 
   try {
-    const result = await runIpoAutomation();
+    const result = await runIpoAutomation({ testAccountId });
     console.log(`\n✅ Automation Test Complete! Result:`);
     console.log(JSON.stringify(result, null, 2));
   } catch (error) {

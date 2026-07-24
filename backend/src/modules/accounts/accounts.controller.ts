@@ -50,10 +50,18 @@ export const accountsController = {
   async list(req: Request, res: Response): Promise<void> {
     const parsed = paginationSchema.safeParse(req.query);
     if (!parsed.success) {
-      sendError(res, 400, "VALIDATION_ERROR", parsed.error.issues.map((e: any) => e.message).join(", "));
+      sendError(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.issues.map((e: any) => e.message).join(", "),
+      );
       return;
     }
-    const result = await accountsService.listOwnAccounts(getUserId(req), parsed.data);
+    const result = await accountsService.listOwnAccounts(
+      getUserId(req),
+      parsed.data,
+    );
     sendSuccess(res, result);
   },
 
@@ -73,10 +81,18 @@ export const accountsController = {
   async create(req: Request, res: Response): Promise<void> {
     const parsed = createAccountSchema.safeParse(req.body);
     if (!parsed.success) {
-      sendError(res, 400, "VALIDATION_ERROR", parsed.error.issues.map((e: any) => e.message).join(", "));
+      sendError(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.issues.map((e: any) => e.message).join(", "),
+      );
       return;
     }
-    const account = await accountsService.createAccount(getUserId(req), parsed.data);
+    const account = await accountsService.createAccount(
+      getUserId(req),
+      parsed.data,
+    );
     sendSuccess(res, account, 201);
   },
 
@@ -89,10 +105,19 @@ export const accountsController = {
 
     const parsed = updateAccountSchema.safeParse(req.body);
     if (!parsed.success) {
-      sendError(res, 400, "VALIDATION_ERROR", parsed.error.issues.map((e: any) => e.message).join(", "));
+      sendError(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.issues.map((e: any) => e.message).join(", "),
+      );
       return;
     }
-    const account = await accountsService.updateAccount(getUserId(req), id, parsed.data);
+    const account = await accountsService.updateAccount(
+      getUserId(req),
+      id,
+      parsed.data,
+    );
     sendSuccess(res, account);
   },
 
@@ -112,10 +137,19 @@ export const accountsController = {
   async fetchMeroshareBanks(req: Request, res: Response): Promise<void> {
     const parsed = fetchBanksSchema.safeParse(req.body);
     if (!parsed.success) {
-      sendError(res, 400, "VALIDATION_ERROR", parsed.error.issues.map((e: any) => e.message).join(", "));
+      sendError(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        parsed.error.issues.map((e: any) => e.message).join(", "),
+      );
       return;
     }
-    const banks = await accountsService.fetchMeroshareBanks(parsed.data.clientId, parsed.data.username, parsed.data.password);
+    const banks = await accountsService.fetchMeroshareBanks(
+      parsed.data.clientId,
+      parsed.data.username,
+      parsed.data.password,
+    );
     sendSuccess(res, banks);
   },
 
@@ -125,7 +159,10 @@ export const accountsController = {
   async fetchBanksForAccount(req: Request, res: Response): Promise<void> {
     const id = req.params.id as string;
     if (!id) throw new AppError(400, "MISSING_PARAM", "Account ID is required");
-    const banks = await accountsService.fetchBanksForAccount(getUserId(req), id);
+    const banks = await accountsService.fetchBanksForAccount(
+      getUserId(req),
+      id,
+    );
     sendSuccess(res, banks);
   },
 };

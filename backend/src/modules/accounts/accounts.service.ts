@@ -14,6 +14,7 @@ export interface CreateAccountInput {
   bankId?: number;
   autoApply?: boolean;
   autoReApply?: boolean;
+  autoUpdatePassword?: boolean;
 }
 
 export interface UpdateAccountInput {
@@ -26,6 +27,7 @@ export interface UpdateAccountInput {
   isActive?: boolean;
   autoApply?: boolean;
   autoReApply?: boolean;
+  autoUpdatePassword?: boolean;
 }
 
 /**
@@ -45,9 +47,41 @@ export interface DecryptedAccount {
   isActive: boolean;
   autoApply: boolean;
   autoReApply: boolean;
+  autoUpdatePassword: boolean;
   name: string | null;
   demat: string | null;
   clientCode: string | null;
+}
+
+export function generateNextPassword(userName: string, currentPassword?: string): string {
+  // Use first word of the user name, strip non-alpha, title case it
+  let baseName = ((userName || '').split(' ')[0] ?? '').replace(/[^a-zA-Z]/g, '');
+  if (!baseName) baseName = 'User';
+  baseName = baseName.charAt(0).toUpperCase() + baseName.slice(1).toLowerCase();
+  
+  // Ensure at least 3 lowercase characters to meet MeroShare policy
+  const lowercaseCount = (baseName.match(/[a-z]/g) || []).length;
+  if (lowercaseCount < 3) {
+    baseName += "pass"; 
+  }
+
+  // Ensure total length with "@001" (4 chars) does not exceed 15 chars (max 11 for baseName)
+  if (baseName.length > 11) {
+    baseName = baseName.substring(0, 11);
+  }
+  
+  const pattern = new RegExp(`^${baseName}@(\\d{3})$`);
+  const match = currentPassword?.match(pattern);
+  
+  if (match && match[1]) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num < 10) {
+      const nextNum = (num + 1).toString().padStart(3, '0');
+      return `${baseName}@${nextNum}`;
+    }
+  }
+  
+  return `${baseName}@001`;
 }
 
 function toDecrypted(account: SelectBrokerAccount): DecryptedAccount {
@@ -63,6 +97,7 @@ function toDecrypted(account: SelectBrokerAccount): DecryptedAccount {
     isActive: account.isActive,
     autoApply: account.autoApply,
     autoReApply: account.autoReApply,
+    autoUpdatePassword: account.autoUpdatePassword,
     name: account.name,
     demat: account.demat,
     clientCode: account.clientCode,
@@ -132,6 +167,7 @@ export const accountsService = {
         isActive: true,
         autoApply: true,
         autoReApply: true,
+        autoUpdatePassword: input.autoUpdatePassword ?? true,
         name: null,
         demat: null,
         clientCode: null,
@@ -171,6 +207,7 @@ export const accountsService = {
       isActive: true,
       autoApply: input.autoApply ?? true,
       autoReApply: input.autoReApply ?? true,
+      autoUpdatePassword: input.autoUpdatePassword ?? false,
     });
     return toDecrypted(account);
   },
@@ -223,11 +260,12 @@ export const accountsService = {
           clientId: updatedClientId,
           username: updatedUsername,
           password: updatedPassword,
-          crn: input.crn ?? account.crn,
-          pin: input.pin ?? decrypt(account.pinEncrypted),
+          crn: account.crn,
+          pin: decrypt(account.pinEncrypted),
           isActive: account.isActive,
           autoApply: account.autoApply,
           autoReApply: account.autoReApply,
+          autoUpdatePassword: account.autoUpdatePassword,
           name: account.name,
           demat: account.demat,
           clientCode: account.clientCode,
@@ -342,6 +380,7 @@ export const accountsService = {
         isActive: true,
         autoApply: true,
         autoReApply: true,
+        autoUpdatePassword: true,
         name: null,
         demat: null,
         clientCode: null,

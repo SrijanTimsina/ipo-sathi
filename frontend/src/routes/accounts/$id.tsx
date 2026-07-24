@@ -28,7 +28,20 @@ import {
   FormDescription,
 } from '#/components/ui/form'
 import { Switch } from '#/components/ui/switch'
-import { ArrowLeft, Check, ChevronsUpDown } from 'lucide-react'
+import {
+  ArrowLeft,
+  Check,
+  ChevronsUpDown,
+  AlertCircle,
+  Key,
+  ExternalLink,
+} from 'lucide-react'
+import {
+  MeroShareBrowserClient,
+  MeroShareAuthError,
+} from '#/app/ipo/api/ipo.meroshare-client'
+import type { MeroShareAuthResponse } from '#/app/ipo/api/ipo.meroshare-client'
+import { ChangePasswordDialog } from '#/app/accounts/components/ChangePasswordDialog'
 import {
   Command,
   CommandEmpty,
@@ -43,6 +56,7 @@ import {
   PopoverTrigger,
 } from '#/components/ui/popover'
 import { cn } from '#/lib/utils'
+import { Badge } from '#/components/ui/badge'
 
 export const Route = createFileRoute('/accounts/$id')({
   component: EditAccountPage,
@@ -80,6 +94,13 @@ function EditAccountContent() {
   const updateAccount = useUpdateAccount()
   const { data: capitals } = useCapitals()
   const { data: banks } = useAccountBanks(id)
+  const [testStatus, setTestStatus] = useState<{
+    loading: boolean
+    success?: boolean
+    error?: string
+    authResponse?: MeroShareAuthResponse
+  }>({ loading: false })
+  const [passwordChangeOpen, setPasswordChangeOpen] = useState(false)
   const [open, setOpen] = useState(false)
   const [bankOpen, setBankOpen] = useState(false)
 
@@ -105,11 +126,59 @@ function EditAccountContent() {
         crn: account.crn,
         password: account.password || '',
         pin: account.pin || '',
-        bankId: account.bankId ?? (banks?.length === 1 ? banks[0].id : undefined),
+        bankId:
+          account.bankId ?? (banks?.length === 1 ? banks[0].id : undefined),
         isActive: account.isActive,
         autoApply: account.autoApply,
         autoReApply: account.autoReApply,
       })
+
+      // Auto-test MeroShare login
+      const runTest = async () => {
+        setTestStatus({ loading: true })
+        try {
+          const client = new MeroShareBrowserClient()
+          console.log(
+            `[Meroshare Test] Authenticating account ${account.username}...`,
+          )
+          await client.login(
+            account.clientId,
+            account.username,
+            account.password || '',
+            true,
+          )
+          console.log(
+            `[Meroshare Test] Account ${account.username} is fully functional.`,
+          )
+          setTestStatus({ loading: false, success: true })
+        } catch (error: any) {
+          if (error instanceof MeroShareAuthError) {
+            console.error(
+              `[Meroshare Test] Account ${account.username} has expired credentials:`,
+              error.authResponse.message,
+            )
+            setTestStatus({
+              loading: false,
+              success: false,
+              authResponse: error.authResponse,
+              error: error.authResponse.message,
+            })
+          } else {
+            const exactError =
+              error?.response?.data?.message ||
+              error?.response?.data?.error ||
+              error?.message ||
+              'Unknown error'
+            console.error(
+              `[Meroshare Test] Account ${account.username} failed:`,
+              exactError,
+            )
+            setTestStatus({ loading: false, success: false, error: exactError })
+          }
+        }
+      }
+
+      void runTest()
     }
   }, [account, form, banks])
 
@@ -128,8 +197,8 @@ function EditAccountContent() {
       await router.navigate({ to: '/accounts' })
     } catch (error: any) {
       const errorMessage =
-        error?.response?.data?.error?.message || 
-        error?.message || 
+        error?.response?.data?.error?.message ||
+        error?.message ||
         'Failed to update account'
       toast.error(errorMessage)
     }
@@ -146,15 +215,80 @@ function EditAccountContent() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.history.back()}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Edit Account</h1>
-          <p className="text-muted-foreground text-sm">
-            {account.name || account.username}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.history.back()}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Edit Account</h1>
+            <p className="text-muted-foreground text-sm">
+              {account.name || account.username}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {testStatus.loading ? (
+            <div className="text-sm px-3 py-1 bg-blue-500/10 text-blue-500 rounded-md animate-pulse">
+              Testing connection...
+            </div>
+          ) : testStatus.success ? (
+            <div className="text-sm px-3 py-1 bg-green-500/10 text-green-500 rounded-md font-medium">
+              ✅ Connected to MeroShare
+            </div>
+          ) : testStatus.error ? (
+            (() => {
+              const auth = testStatus.authResponse
+              const needsRenew = auth?.accountExpired || auth?.dematExpired
+              const needsPassword = auth?.passwordExpired || auth?.changePassword
+
+              let failureText = 'Failed'
+              if (auth?.passwordExpired || auth?.changePassword) failureText = 'Failed: Password Expired'
+              else if (auth?.accountExpired) failureText = 'Failed: Meroshare Expired'
+              else if (auth?.dematExpired) failureText = 'Failed: Demat Expired'
+
+              return (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-red-500 flex items-center gap-1.5" title={testStatus.error}>
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {failureText}
+                  </span>
+                  {needsRenew && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                  asChild
+                >
+                  <a
+                    href="https://meroshare.cdsc.com.np/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Renew
+                    Account
+                  </a>
+                </Button>
+              )}
+              {(testStatus.authResponse?.passwordExpired ||
+                testStatus.authResponse?.changePassword) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                  onClick={() => setPasswordChangeOpen(true)}
+                >
+                  <Key className="w-3.5 h-3.5 mr-1.5" /> Change Password
+                  </Button>
+                )}
+              </div>
+            )
+          })()
+        ) : null}
         </div>
       </div>
 
@@ -279,7 +413,7 @@ function EditAccountContent() {
                             )}
                           >
                             {field.value
-                              ? banks?.find(b => b.id === field.value)?.name
+                              ? banks?.find((b) => b.id === field.value)?.name
                               : 'Select Bank'}
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
@@ -363,7 +497,9 @@ function EditAccountContent() {
                     render={({ field }) => (
                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                         <div className="space-y-0.5">
-                          <FormLabel className="text-base">Auto Apply</FormLabel>
+                          <FormLabel className="text-base">
+                            Auto Apply
+                          </FormLabel>
                           <FormDescription>
                             Automatically apply for new IPOs when they open.
                           </FormDescription>
@@ -442,6 +578,18 @@ function EditAccountContent() {
           </Form>
         </CardContent>
       </Card>
+
+      <ChangePasswordDialog
+        account={account}
+        open={passwordChangeOpen}
+        onOpenChange={setPasswordChangeOpen}
+        onSuccess={() => {
+          setPasswordChangeOpen(false)
+          setTestStatus({ loading: true })
+          // Re-fetch or re-test the account to verify
+          void refetch()
+        }}
+      />
     </div>
   )
 }

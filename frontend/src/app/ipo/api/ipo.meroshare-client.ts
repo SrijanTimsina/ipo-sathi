@@ -133,6 +133,25 @@ export interface ApplyIpoPayload {
   transactionPIN: string
 }
 
+export interface MeroShareAuthResponse {
+  statusCode: number
+  passwordPolicyChanged: boolean
+  passwordExpired: boolean
+  changePassword: boolean
+  accountExpired: boolean
+  dematExpired: boolean
+  message: string
+  isTransactionPINNotSetBefore: boolean
+  isTransactionPINReset: boolean
+}
+
+export class MeroShareAuthError extends Error {
+  constructor(public authResponse: MeroShareAuthResponse) {
+    super(authResponse.message || 'MeroShare Authentication Error')
+    this.name = 'MeroShareAuthError'
+  }
+}
+
 interface TokenCacheEntry {
   token: string
   expiresAt: number
@@ -193,7 +212,7 @@ export class MeroShareBrowserClient {
       )
     }
 
-    const response = await this.http.post<unknown>('/meroShare/auth/', {
+    const response = await this.http.post<MeroShareAuthResponse>('/meroShare/auth/', {
       clientId: Number(clientId),
       username,
       password,
@@ -208,6 +227,14 @@ export class MeroShareBrowserClient {
       )
     }
 
+    const authData = response.data
+    if (authData.passwordExpired || authData.changePassword || authData.accountExpired || authData.dematExpired) {
+      // Save token temporarily so `changePassword` can use it
+      this.currentToken = token
+      // Do not cache this token persistently as the account is locked/expired
+      throw new MeroShareAuthError(authData)
+    }
+
     authCache.set(cacheKey, {
       token,
       expiresAt: Date.now() + 5 * 60 * 1000,
@@ -215,6 +242,27 @@ export class MeroShareBrowserClient {
     this.currentToken = token
 
     return token
+  }
+
+  async changePassword(
+    oldPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Promise<void> {
+    if (!this.currentToken) {
+      throw new Error('Authentication token required to change password')
+    }
+    await this.http.post(
+      '/meroShare/changePassword/',
+      {
+        oldPassword,
+        newPassword,
+        confirmPassword,
+      },
+      {
+        headers: { Authorization: this.currentToken },
+      }
+    )
   }
 
   private getToken(): string {

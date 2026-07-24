@@ -7,6 +7,7 @@ import {
   LiveApplicationStatus,
 } from "./ipo.notification.service.js";
 import { usersRepo } from "../users/users.repo.js";
+import { safeAuthenticate } from "./ipo.auth.utils.js";
 import { config } from "../../config/index.js";
 
 export async function checkIpoResults() {
@@ -50,7 +51,7 @@ export async function checkIpoResults() {
   let token: string;
 
   try {
-    token = await client.authenticate(decryptedRefAccount);
+    token = await safeAuthenticate(client, decryptedRefAccount);
   } catch (error) {
     console.error(
       "[ResultAutomation] Failed to authenticate reference account",
@@ -130,7 +131,7 @@ async function processPublishedIpo(ipo: any) {
 
     try {
       const accClient = new MeroShareClient();
-      const accToken = await accClient.authenticate(account);
+      const accToken = await safeAuthenticate(accClient, account);
       const accReport = await accClient.getApplicationReport(accToken);
       const accApp = accReport.find(
         (app) => String(app.companyShareId) === ipo.companyShareId,

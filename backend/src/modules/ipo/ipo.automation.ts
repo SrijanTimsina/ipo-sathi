@@ -9,6 +9,7 @@ import {
 } from "./ipo.notification.service.js";
 import { config } from "../../config/index.js";
 import { usersRepo } from "../users/users.repo.js";
+import { safeAuthenticate } from "./ipo.auth.utils.js";
 
 export async function runIpoAutomation(options?: {
   testAccountId?: string;
@@ -43,7 +44,7 @@ export async function runIpoAutomation(options?: {
   let applicableIssues: MeroShareIpo[] = [];
   let issueDetails = new Map<number, any>();
   try {
-    const token = await client.authenticate(decryptedRefAccount);
+    const token = await safeAuthenticate(client, decryptedRefAccount);
     const allIpos = await client.getApplicableIpos(token);
     applicableIssues = allIpos.filter(
       (ipo) =>
@@ -179,7 +180,7 @@ export async function runIpoAutomation(options?: {
 
       try {
         const accClient = new MeroShareClient();
-        const accToken = await accClient.authenticate(account);
+        const accToken = await safeAuthenticate(accClient, account);
 
         // Check current status directly
         const report = await accClient.getApplicationReport(accToken);

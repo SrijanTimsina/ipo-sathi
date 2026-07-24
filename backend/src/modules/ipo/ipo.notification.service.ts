@@ -322,4 +322,20 @@ export const ipoNotificationService = {
     }
     return mobile;
   },
+
+  async notifyPasswordUpdate(
+    user: { mobileNumber: string },
+    account: { username: string; name: string | null },
+    newPassword: string
+  ) {
+    if (!user.mobileNumber) return;
+
+    const accName = account.name || account.username;
+    const message = `🔐 *MeroShare Password Auto-Updated*\n\nYour password for account *${accName}* (${account.username}) was expired and has been automatically updated.\n\nNew Password: *${newPassword}*\n\nPlease use this new password if you log in manually.`;
+
+    await whatsappService.sendMessage(
+      this.formatNumber(user.mobileNumber),
+      message
+    );
+  },
 };

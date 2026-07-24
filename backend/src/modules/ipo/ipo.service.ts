@@ -3,6 +3,7 @@ import {
   type MeroShareIpo,
   type ApplyIpoPayload,
 } from "./ipo.meroshare.client.js";
+import { safeAuthenticate } from "./ipo.auth.utils.js";
 import { ipoRepo } from "./ipo.repo.js";
 import { accountsService } from "../accounts/accounts.service.js";
 import { AppError } from "../../shared/middleware/errorHandler.js";
@@ -65,7 +66,7 @@ export const ipoService = {
 
     for (const account of accounts) {
       try {
-        const token = await client.authenticate(account);
+        const token = await safeAuthenticate(client, account);
         return await client.getApplicableIpos(token);
       } catch (err) {
         lastError = err;
@@ -172,7 +173,7 @@ export const ipoService = {
     for (const account of accounts) {
       try {
         const client = new MeroShareClient();
-        const token = await client.authenticate(account);
+        const token = await safeAuthenticate(client, account);
         const report = await client.getApplicationReport(token);
         for (const app of report) {
           if (!ipoMap.has(app.companyShareId)) {
@@ -211,7 +212,7 @@ export const ipoService = {
     for (const account of accounts) {
       try {
         const client = new MeroShareClient();
-        const token = await client.authenticate(account);
+        const token = await safeAuthenticate(client, account);
 
         let name: string | undefined = account.name || undefined;
 
@@ -414,7 +415,7 @@ export async function applyForAccount(
   const client = new MeroShareClient();
 
   // Step 1: Authenticate
-  const token = await client.authenticate(account);
+  const token = await safeAuthenticate(client, account);
 
   // Step 1.5: Check if already applied
   const report = await client.getApplicationReport(token);
@@ -467,7 +468,7 @@ export async function reapplyForAccount(
   applicantFormId: number,
 ): Promise<void> {
   const client = new MeroShareClient();
-  const token = await client.authenticate(account);
+  const token = await safeAuthenticate(client, account);
 
   const detail = await client.getApplicationDetail(token, applicantFormId);
   const companyShareId = detail.companyShareId;

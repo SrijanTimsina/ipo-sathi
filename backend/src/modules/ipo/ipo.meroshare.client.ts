@@ -16,6 +16,28 @@ export interface MeroShareOwnDetail {
   clientCode: string;
   [key: string]: unknown;
 }
+export interface MeroShareAuthResponse {
+  statusCode: number;
+  passwordPolicyChanged: boolean;
+  passwordExpired: boolean;
+  changePassword: boolean;
+  accountExpired: boolean;
+  dematExpired: boolean;
+  message: string;
+  isTransactionPINNotSetBefore: boolean;
+  isTransactionPINReset: boolean;
+}
+
+export class MeroShareAuthError extends Error {
+  public authResponse: MeroShareAuthResponse;
+  public token: string;
+  constructor(authResponse: MeroShareAuthResponse, token: string) {
+    super(authResponse.message || "MeroShare Authentication Error");
+    this.name = "MeroShareAuthError";
+    this.authResponse = authResponse;
+    this.token = token;
+  }
+}
 
 export interface MeroShareClientBoid {
   boid: string;
@@ -310,6 +332,16 @@ export class MeroShareClient {
       );
     }
 
+    const authData = response.data as MeroShareAuthResponse;
+    if (
+      authData.passwordExpired ||
+      authData.changePassword ||
+      authData.accountExpired ||
+      authData.dematExpired
+    ) {
+      throw new MeroShareAuthError(authData, token);
+    }
+
     if (account.id) {
       authCache.set(account.id, {
         token,
@@ -319,6 +351,22 @@ export class MeroShareClient {
     }
 
     return token;
+  }
+
+  /**
+   * Change password using the provided token.
+   */
+  async changePassword(
+    token: string,
+    oldPassword: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Promise<void> {
+    await this.http.post(
+      "/meroShare/changePassword/",
+      { oldPassword, newPassword, confirmPassword },
+      { headers: { Authorization: token } },
+    );
   }
 
   /**

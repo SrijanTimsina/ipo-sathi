@@ -33,6 +33,7 @@ export const brokerAccounts = pgTable("broker_accounts", {
   isActive: boolean("is_active").notNull().default(true),
   autoApply: boolean("auto_apply").notNull().default(true),
   autoReApply: boolean("auto_reapply").notNull().default(true),
+  autoUpdatePassword: boolean("auto_update_password").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
