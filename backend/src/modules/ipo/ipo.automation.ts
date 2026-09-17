@@ -42,24 +42,9 @@ export async function runIpoAutomation(options?: {
   // 2. Fetch open IPOs using reference account
   const client = new MeroShareClient();
   let applicableIssues: MeroShareIpo[] = [];
-  let issueDetails = new Map<number, any>();
   try {
     const token = await safeAuthenticate(client, decryptedRefAccount);
-    const allIpos = await client.getApplicableIpos(token);
-    applicableIssues = allIpos.filter(
-      (ipo) =>
-        ipo.shareTypeName === "IPO" &&
-        ipo.shareGroupName === "Ordinary Shares" &&
-        ipo.subGroup === "For General Public",
-    );
-    for (const issue of applicableIssues) {
-      try {
-        const detail = await client.getIpoDetail(token, issue.companyShareId);
-        issueDetails.set(issue.companyShareId, detail);
-      } catch (err) {
-        console.error(`Failed to fetch detail for ${issue.companyShareId}`);
-      }
-    }
+    applicableIssues = await client.getApplicableIpos(token);
   } catch (error) {
     console.error(
       "Failed to authenticate reference account or fetch IPOs",
@@ -90,15 +75,14 @@ export async function runIpoAutomation(options?: {
   >();
 
   for (const ipo of applicableIssues) {
-    const detail = issueDetails.get(ipo.companyShareId);
     iposToProcess.set(ipo.companyShareId, {
       companyShareId: ipo.companyShareId,
       companyName: ipo.companyName,
       issueOpenDate: ipo.issueOpenDate ? new Date(ipo.issueOpenDate) : null,
       issueCloseDate: ipo.issueCloseDate ? new Date(ipo.issueCloseDate) : null,
       isOpen: true,
-      sharePerUnit: detail?.sharePerUnit,
-      shareValue: detail?.shareValue,
+      sharePerUnit: ipo.sharePerUnit as number | undefined,
+      shareValue: ipo.shareValue as number | undefined,
     });
   }
 

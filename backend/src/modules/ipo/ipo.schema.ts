@@ -26,6 +26,7 @@ export const ipoNotifications = pgTable("ipo_notifications", {
   ipoId: varchar("ipo_id", { length: 100 }).notNull(),
   initialSent: boolean("initial_sent").notNull().default(false),
   allVerifiedSent: boolean("all_verified_sent").notNull().default(false),
+  ruleAlertSent: boolean("rule_alert_sent").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

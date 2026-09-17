@@ -189,6 +189,20 @@ Origin: https://meroshare.cdsc.com.np
 
 > **Note:** `totalCount` may return `0` even when results are present. Do not rely on `totalCount` to determine if results exist — use `object.length` instead.
 
+### 2.1 Issue Types & Filtering (Ordinary IPO vs. Debenture vs. Mutual Fund)
+
+The applicable issues endpoint returns every open issue CDSC is currently accepting applications for — not just ordinary company IPOs. The platform only wants to auto-apply to **ordinary company IPOs/FPOs open to the general public**, so every other issue type must be filtered out client-side. Observed issue types and how to tell them apart:
+
+| Issue type                        | `shareTypeName` | `shareGroupName`   | `subGroup`            | `sharePerUnit` (detail) | Example                        |
+| ---------------------------------- | ---------------- | ------------------- | ----------------------- | ------------------------- | ------------------------------- |
+| Ordinary company IPO/FPO           | `"IPO"`/`"FPO"`   | `"Ordinary Shares"`  | `"For General Public"`  | `~100` (varies)           | Sarvottam Paints Industries Ltd. |
+| Debenture                          | `"IPO"`           | `"Debentures"`       | `"For General Public"`  | (varies, e.g. `1000`)     | 6.25% Prime Bank Debenture 2093  |
+| Mutual fund / scheme NFO           | `"IPO"`           | `"Ordinary Shares"`  | `"For General Public"`  | `10`                      | Muktinath Mutual Fund 2          |
+
+> **Critical:** Debentures are reliably excluded by checking `shareGroupName !== "Debentures"`. **Mutual funds are not** — CDSC returns them with the exact same `shareTypeName`, `shareGroupName`, and `subGroup` as an ordinary company IPO (confirmed live for "Muktinath Mutual Fund 2", open 2026-09-17 to 2026-09-22, `shareGroupName: "Ordinary Shares"`). There is no field on the applicable-issues list that flags an issue as a mutual fund/scheme.
+>
+> The reliable signal is face value: mutual fund/scheme units are issued at **Rs. 10 per unit** (confirmed live: Muktinath Mutual Fund 2 → `sharePerUnit: 10`, `shareValue: 100000000`), while ordinary company shares are usually issued around **Rs. 100 per unit** but can vary — slightly below par or well above it for premium/book-built offerings. `sharePerUnit` only exists on the [IPO Detail](#3-ipo-detail) response, not the applicable-issues list, so filtering requires an extra `GET /meroShare/active/{companyShareId}` call per candidate, keeping only those where `sharePerUnit >= 20`. That cutoff is deliberately low (not matched to par) so it only ever catches mutual funds (Rs. 10) and never an ordinary company IPO priced away from par — premium-priced IPOs are handled separately by the existing "premium price" skip-with-notification rule in `ipo.automation.ts`/`ipo.notification.service.ts`, rather than being touched here. See `getApplicableIpos()` in `backend/src/modules/ipo/ipo.meroshare.client.ts` (mirrored in `frontend/src/app/ipo/api/ipo.meroshare-client.ts`) — this is the single place both apps decide whether an issue is eligible for auto-apply.
+
 ---
 
 ## 3. IPO Detail

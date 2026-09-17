@@ -91,4 +91,16 @@ export const ipoRepo = {
         ),
       );
   },
+
+  async markRuleAlertSent(userId: string, ipoId: string): Promise<void> {
+    await db
+      .update(ipoNotifications)
+      .set({ ruleAlertSent: true, updatedAt: new Date() })
+      .where(
+        and(
+          eq(ipoNotifications.userId, userId),
+          eq(ipoNotifications.ipoId, ipoId),
+        ),
+      );
+  },
 };
