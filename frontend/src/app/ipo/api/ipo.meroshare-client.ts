@@ -4,6 +4,21 @@ import type { AxiosInstance } from 'axios'
 const MEROSHARE_BASE = 'https://webbackend.cdsc.com.np/api'
 const REQUEST_TIMEOUT = 30_000
 
+// MeroShare does not expose a dedicated field for mutual fund / scheme NFOs —
+// they come back with the same shareTypeName ("IPO"), shareGroupName
+// ("Ordinary Shares") and subGroup ("For General Public") as an ordinary
+// company IPO (e.g. "Muktinath Mutual Fund 2"). Debentures are already
+// excluded by shareGroupName. Mutual funds are reliably distinguished by
+// face value instead: mutual fund/scheme units are issued at Rs. 10 per
+// unit, while ordinary company shares are usually issued around Rs. 100 per
+// unit but can vary (slightly below par or well above it for book-built
+// offerings). A low threshold (below Rs. 20) is used instead of matching
+// par exactly, so it only ever catches mutual funds and never an ordinary
+// company IPO priced away from par. This requires an extra detail call per
+// candidate issue since sharePerUnit is only present on the IPO detail
+// response, not the applicable-issues list.
+const MUTUAL_FUND_SHARE_PER_UNIT_CUTOFF = 20
+
 export interface MeroShareOwnDetail {
   demat: string
   boid: string
@@ -318,13 +333,42 @@ export class MeroShareBrowserClient {
     )
 
     const ipos = response.data.object ?? []
-
-    return ipos.filter(
+    const candidates = ipos.filter(
       (ipo) =>
         ipo.shareTypeName === 'IPO' &&
         ipo.shareGroupName === 'Ordinary Shares' &&
         ipo.subGroup === 'For General Public',
     )
+
+    const eligible: MeroShareIpo[] = []
+    for (const ipo of candidates) {
+      try {
+        const detail = await this.getIpoDetail(ipo.companyShareId)
+        if (
+          typeof detail?.sharePerUnit === 'number' &&
+          detail.sharePerUnit >= MUTUAL_FUND_SHARE_PER_UNIT_CUTOFF
+        ) {
+          eligible.push({
+            ...ipo,
+            sharePerUnit: detail.sharePerUnit,
+            shareValue: detail.shareValue,
+          })
+        }
+      } catch (err) {
+        console.error(
+          `Failed to fetch detail for ${ipo.companyShareId} while filtering applicable issues`,
+        )
+      }
+    }
+    return eligible
+  }
+
+  async getIpoDetail(companyShareId: number): Promise<any> {
+    const response = await this.http.get(
+      `/meroShare/active/${companyShareId}`,
+      { headers: { Authorization: this.getToken() } },
+    )
+    return response.data
   }
 
   async getBankList(): Promise<MeroShareBankListItem[]> {

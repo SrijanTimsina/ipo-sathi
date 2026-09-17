@@ -134,7 +134,7 @@ export const ipoNotificationService = {
     }
 
     if (shouldSendStatusReport) {
-      await this.notifyStatusReportLive(
+      const ruleAlertIncluded = await this.notifyStatusReportLive(
         user.mobileNumber,
         ipoName,
         liveApps,
@@ -147,7 +147,11 @@ export const ipoNotificationService = {
         false, // isAllVerified
         sharePerUnit,
         shareValue,
+        notifState.ruleAlertSent,
       );
+      if (ruleAlertIncluded) {
+        await ipoRepo.markRuleAlertSent(userId, ipoId);
+      }
     }
   },
 
@@ -164,7 +168,8 @@ export const ipoNotificationService = {
     isAllVerified: boolean = false,
     sharePerUnit?: number,
     shareValue?: number,
-  ) {
+    ruleAlertAlreadySent: boolean = false,
+  ): Promise<boolean> {
     const verified: string[] = [];
     const unverified: string[] = [];
     const skipped: string[] = [];
@@ -259,16 +264,19 @@ export const ipoNotificationService = {
       unverified.forEach((u) => (message += `${u}\n`));
     }
 
-    // Add custom reminder if any account skipped due to custom rules
+    // Add custom reminder if any account skipped due to custom rules — only once per IPO
     const hasSkippedDueToRules = liveApps.some(
       (a) => a.errorMessage === "Skipped due to custom rules",
     );
-    if (hasSkippedDueToRules) {
+    let ruleAlertIncluded = false;
+    if (hasSkippedDueToRules && !ruleAlertAlreadySent) {
       if (sharePerUnit && sharePerUnit > 200) {
         message += `\n⚠️ *Premium IPO Alert: This share is issued at Rs. ${sharePerUnit} per unit. Auto-apply has been disabled to expensive premiums IPOs. Please apply manually via https://ipo-sathi.vercel.app/ if you wish to invest.*\n`;
+        ruleAlertIncluded = true;
       } else if (shareValue && shareValue > 20000000) {
         const numApplicants = Math.floor(shareValue / 10);
         message += `\n⚠️ *High Volume IPO Alert: ${shareValue} shares are being issued, expected to be allotted to ${numApplicants}+ applicants. Consider applying for 20 or more kittas to improve allotment chances.*\n`;
+        ruleAlertIncluded = true;
       }
     }
 
@@ -276,6 +284,8 @@ export const ipoNotificationService = {
       this.formatNumber(mobileNumber),
       message.trim(),
     );
+
+    return ruleAlertIncluded;
   },
 
   async notifyResultForUserLive(
